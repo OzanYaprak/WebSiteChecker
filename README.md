@@ -124,8 +124,82 @@ Ayarlar ve site listesi şu klasörde saklanır:
 ├── sites.json
 ├── smtp-settings.json
 ├── smtp-password.dat   (DPAPI ile şifrelenmiş)
+├── ui-settings.json    (tema tercihi)
 └── monitor-state.json
 ```
+
+## Güvenlik
+
+Uygulama, kullanıcı girdisi ve ağ istekleri için savunma katmanları içerir. Aşağıdaki önlemler `Helpers/` ve `Services/` altındaki bileşenlerle uygulanmıştır.
+
+### SSRF koruması (Server-Side Request Forgery)
+
+Site URL'leri yalnızca genel internet adreslerine yönlendirilebilir. İç ağ ve yerel hedeflere istek gönderilmesi engellenir.
+
+| Kontrol | Açıklama |
+|---------|----------|
+| `UrlSafetyValidator` | Kayıt ve istek öncesi URL doğrulama |
+| Özel IP engeli | `10.x`, `172.16–31.x`, `192.168.x`, `127.x`, `169.254.x`, `0.0.0.0` |
+| Host engeli | `localhost`, `*.local`, `metadata.google.internal` |
+| DNS doğrulama | Host adı çözümlendikten sonra dönen IP'ler de kontrol edilir |
+| Redirect koruması | `HttpHealthChecker` otomatik yönlendirmeyi manuel takip eder; her hop'ta URL yeniden doğrulanır (max 10 yönlendirme) |
+
+**Reddedilen örnek URL'ler:** `http://127.0.0.1`, `http://192.168.1.1`, `http://169.254.169.254`, `http://localhost`
+
+Harici bir URL iç ağa yönlendirse bile (redirect), ikinci adımda engellenir.
+
+### Kaynak limitleri (DoS önleme)
+
+| Limit | Değer |
+|-------|-------|
+| Maksimum site sayısı | 50 |
+| Kontrol aralığı | 5 – 86.400 sn (1 gün) |
+| Zaman aşımı | 1 – 60 sn |
+| Eşzamanlı HTTP kontrolü | 10 |
+
+Limitler `SiteLimits` ve `SiteInputValidator` ile site ekleme/düzenleme sırasında uygulanır. `WebsiteMonitorService` eşzamanlı istekleri `SemaphoreSlim` ile sınırlar.
+
+### SMTP ve e-posta güvenliği
+
+| Önlem | Açıklama |
+|-------|----------|
+| DPAPI şifreleme | SMTP şifresi `smtp-password.dat` dosyasında Windows DPAPI ile şifrelenir |
+| Header injection engeli | Site adında `\r`, `\n`, `\0` karakterleri reddedilir (`InputSanitizer`) |
+| E-posta sanitizasyonu | Bildirim konu ve gövdesindeki metinler gönderim öncesi temizlenir |
+
+### Hata mesajı sızıntısı
+
+HTTP kontrol hatalarında kullanıcıya genel mesaj gösterilir (`Bağlantı hatası`, `İstek zaman aşımına uğradı`). Teknik detaylar yalnızca debug çıktısına yazılır; UI ve e-postada iç yapı bilgisi paylaşılmaz.
+
+### Mevcut güvenli varsayılanlar
+
+- URL şeması yalnızca `http` / `https` (`UrlValidator`)
+- Windows başlangıç kaydı yalnızca `HKCU\...\Run` (`StartupRegistryHelper`)
+- SMTP ayarları ve site listesi `%AppData%` altında kullanıcıya özel dizinde saklanır
+
+### Güvenlik testleri
+
+Projede saldırı senaryolarını doğrulayan birim testleri bulunur:
+
+```bash
+dotnet test tests/WebSiteChecker.SecurityTests/WebSiteChecker.SecurityTests.csproj
+```
+
+Test kapsamı:
+
+- SSRF URL engelleme (`UrlSafetyValidator`)
+- SMTP header injection karakterleri (`InputSanitizer`)
+- Site giriş limitleri (`SiteInputValidator`, `SiteLimits`)
+
+### Manuel güvenlik kontrol listesi
+
+Uygulamayı çalıştırarak şunları doğrulayabilirsiniz:
+
+1. Site URL olarak `http://127.0.0.1` ekleyin → reddedilmeli
+2. `http://192.168.0.1` ekleyin → reddedilmeli
+3. Site adına `\r\n` içeren metin girin → reddedilmeli
+4. 51. siteyi eklemeyi deneyin → limit uyarısı gelmeli
+5. `smtp-password.dat` dosyasını başka bir Windows kullanıcısıyla açmayı deneyin → DPAPI engellemeli
 
 ## Tray Davranışı
 

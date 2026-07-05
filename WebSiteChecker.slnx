@@ -2,4 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/WebSiteChecker/WebSiteChecker.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WebSiteChecker.SecurityTests/WebSiteChecker.SecurityTests.csproj" />
+  </Folder>
 </Solution>

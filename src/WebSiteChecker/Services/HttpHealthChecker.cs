@@ -1,15 +1,16 @@
 using System.Diagnostics;
+using System.Net;
 using System.Net.Http;
+using WebSiteChecker.Helpers;
 using WebSiteChecker.Models;
 
 namespace WebSiteChecker.Services;
 
 public class HttpHealthChecker
 {
-    private static readonly HttpClient SharedClient = new(new HttpClientHandler
-    {
-        AllowAutoRedirect = true
-    })
+    private const int MaxRedirects = 10;
+
+    private static readonly HttpClient SharedClient = new(new SafeRedirectHandler())
     {
         DefaultRequestHeaders = { { "User-Agent", "WebSiteChecker/1.0" } }
     };
@@ -20,6 +21,12 @@ public class HttpHealthChecker
 
         try
         {
+            if (!UrlSafetyValidator.IsUrlSafe(site.Url, out var safetyError))
+            {
+                stopwatch.Stop();
+                return BuildResult(site.Id, false, null, stopwatch.ElapsedMilliseconds, safetyError);
+            }
+
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(TimeSpan.FromSeconds(site.TimeoutSeconds));
 
@@ -31,8 +38,8 @@ public class HttpHealthChecker
 
             stopwatch.Stop();
 
-            if (headResponse.StatusCode == System.Net.HttpStatusCode.MethodNotAllowed ||
-                headResponse.StatusCode == System.Net.HttpStatusCode.NotImplemented)
+            if (headResponse.StatusCode == HttpStatusCode.MethodNotAllowed ||
+                headResponse.StatusCode == HttpStatusCode.NotImplemented)
             {
                 return await CheckWithGetAsync(site, stopwatch, cts.Token);
             }
@@ -49,7 +56,7 @@ public class HttpHealthChecker
         catch (Exception ex)
         {
             stopwatch.Stop();
-            return BuildResult(site.Id, false, null, stopwatch.ElapsedMilliseconds, ex.Message);
+            return BuildResult(site.Id, false, null, stopwatch.ElapsedMilliseconds, ToPublicErrorMessage(ex));
         }
     }
 
@@ -73,6 +80,18 @@ public class HttpHealthChecker
             statusCode, stopwatch.ElapsedMilliseconds, null);
     }
 
+    private static string ToPublicErrorMessage(Exception ex)
+    {
+        if (ex is InvalidOperationException)
+            return ex.Message;
+
+        if (ex.InnerException is InvalidOperationException inner)
+            return inner.Message;
+
+        Debug.WriteLine($"HTTP check error: {ex}");
+        return "Bağlantı hatası.";
+    }
+
     private static SiteCheckResult BuildResult(
         Guid siteId,
         bool isSuccess,
@@ -92,5 +111,56 @@ public class HttpHealthChecker
             ErrorMessage = errorMessage,
             CheckedAt = DateTime.UtcNow
         };
+    }
+
+    private sealed class SafeRedirectHandler : HttpClientHandler
+    {
+        public SafeRedirectHandler()
+        {
+            AllowAutoRedirect = false;
+        }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            for (var redirectCount = 0; redirectCount <= MaxRedirects; redirectCount++)
+            {
+                if (request.RequestUri is null)
+                    throw new InvalidOperationException("İzin verilmeyen yönlendirme adresi.");
+
+                if (!UrlSafetyValidator.IsUriSafe(request.RequestUri, out var safetyError))
+                    throw new InvalidOperationException(safetyError ?? "İzin verilmeyen yönlendirme adresi.");
+
+                var response = await base.SendAsync(request, cancellationToken);
+
+                if (!IsRedirectStatusCode(response.StatusCode))
+                    return response;
+
+                var location = response.Headers.Location;
+                if (location is null)
+                    return response;
+
+                response.Dispose();
+
+                request.RequestUri = location.IsAbsoluteUri
+                    ? location
+                    : new Uri(request.RequestUri, location);
+
+                if (request.Method == HttpMethod.Post || request.Method == HttpMethod.Put)
+                    request.Method = HttpMethod.Get;
+
+                request.Headers.Host = null;
+            }
+
+            throw new InvalidOperationException("Çok fazla yönlendirme algılandı.");
+        }
+
+        private static bool IsRedirectStatusCode(HttpStatusCode statusCode) =>
+            statusCode is HttpStatusCode.MovedPermanently
+                or HttpStatusCode.Redirect
+                or HttpStatusCode.RedirectMethod
+                or HttpStatusCode.TemporaryRedirect
+                or HttpStatusCode.PermanentRedirect;
     }
 }

@@ -24,6 +24,9 @@ public static class UrlValidator
             return false;
         }
 
+        if (!UrlSafetyValidator.IsUrlSafe(url, out error))
+            return false;
+
         return true;
     }
 }

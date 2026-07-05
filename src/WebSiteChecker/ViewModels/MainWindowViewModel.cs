@@ -111,11 +111,23 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void AddSite()
     {
+        var sites = _configStore.LoadSites();
+        if (sites.Count >= SiteLimits.MaxSites)
+        {
+            DialogHelper.ShowError($"En fazla {SiteLimits.MaxSites} site eklenebilir.");
+            return;
+        }
+
         var dialog = new AddEditSiteWindow();
         if (dialog.ShowDialogCentered() != true || dialog.ResultSite is null)
             return;
 
-        var sites = _configStore.LoadSites();
+        if (sites.Count >= SiteLimits.MaxSites)
+        {
+            DialogHelper.ShowError($"En fazla {SiteLimits.MaxSites} site eklenebilir.");
+            return;
+        }
+
         sites.Add(dialog.ResultSite);
         _configStore.SaveSites(sites);
         _monitorService.ReloadSites();

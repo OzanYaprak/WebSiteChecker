@@ -33,49 +33,32 @@ public partial class AddEditSiteWindow : Window
 
     private void SaveButton_Click(object sender, RoutedEventArgs e)
     {
-        var name = NameTextBox.Text.Trim();
-        var url = UrlTextBox.Text.Trim();
+        if (!int.TryParse(IntervalTextBox.Text, out var interval))
+            interval = SiteLimits.MinIntervalSeconds;
 
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            DialogHelper.ShowError("Site adı boş olamaz.");
-            return;
-        }
+        if (!int.TryParse(TimeoutTextBox.Text, out var timeout))
+            timeout = SiteLimits.MinTimeoutSeconds;
 
-        if (!UrlValidator.IsValidHttpUrl(url, out var urlError))
-        {
-            DialogHelper.ShowError(urlError!);
-            return;
-        }
-
-        if (!int.TryParse(IntervalTextBox.Text, out var interval) || interval < 5)
-        {
-            DialogHelper.ShowError("Kontrol aralığı en az 5 saniye olmalıdır.");
-            return;
-        }
-
-        if (!int.TryParse(TimeoutTextBox.Text, out var timeout) || timeout < 1)
-        {
-            DialogHelper.ShowError("Zaman aşımı en az 1 saniye olmalıdır.");
-            return;
-        }
-
-        if (!int.TryParse(StatusCodeTextBox.Text, out var statusCode) || statusCode < 100 || statusCode > 599)
-        {
-            DialogHelper.ShowError("Geçerli bir HTTP durum kodu girin (100-599).");
-            return;
-        }
+        if (!int.TryParse(StatusCodeTextBox.Text, out var statusCode))
+            statusCode = 200;
 
         ResultSite = new MonitoredSite
         {
             Id = _existingId ?? Guid.NewGuid(),
-            Name = name,
-            Url = url,
+            Name = NameTextBox.Text.Trim(),
+            Url = UrlTextBox.Text.Trim(),
             IntervalSeconds = interval,
             TimeoutSeconds = timeout,
             ExpectedStatusCode = statusCode,
             IsEnabled = EnabledCheckBox.IsChecked == true
         };
+
+        if (!SiteInputValidator.TryValidate(ResultSite, out var error))
+        {
+            DialogHelper.ShowError(error!);
+            ResultSite = null;
+            return;
+        }
 
         DialogResult = true;
         Close();

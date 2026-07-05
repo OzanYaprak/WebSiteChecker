@@ -1,10 +1,12 @@
 using Microsoft.Extensions.Hosting;
+using WebSiteChecker.Helpers;
 using WebSiteChecker.Models;
 
 namespace WebSiteChecker.Services;
 
 public class WebsiteMonitorService : BackgroundService, IWebsiteMonitorService
 {
+    private readonly SemaphoreSlim _checkSemaphore = new(SiteLimits.MaxConcurrentChecks, SiteLimits.MaxConcurrentChecks);
     private readonly ConfigStore _configStore;
     private readonly HttpHealthChecker _healthChecker;
     private readonly SmtpEmailNotifier _emailNotifier;
@@ -110,6 +112,7 @@ public class WebsiteMonitorService : BackgroundService, IWebsiteMonitorService
                 StopSiteLoop(id);
         }
 
+        _checkSemaphore.Dispose();
         return base.StopAsync(cancellationToken);
     }
 
@@ -150,20 +153,28 @@ public class WebsiteMonitorService : BackgroundService, IWebsiteMonitorService
 
     private async Task RunCheckAsync(MonitoredSite site, CancellationToken cancellationToken)
     {
-        UpdateRuntimeState(site.Id, SiteStatus.Checking, null, null, null, null);
-
-        var result = await _healthChecker.CheckAsync(site, cancellationToken);
-        var status = result.IsSuccess ? SiteStatus.Up : SiteStatus.Down;
-
-        UpdateRuntimeState(site.Id, status, result.CheckedAt, result.ResponseTimeMs, result.StatusCode, result.ErrorMessage);
-
+        await _checkSemaphore.WaitAsync(cancellationToken);
         try
         {
-            await HandleAlertsAsync(site, result, cancellationToken);
+            UpdateRuntimeState(site.Id, SiteStatus.Checking, null, null, null, null);
+
+            var result = await _healthChecker.CheckAsync(site, cancellationToken);
+            var status = result.IsSuccess ? SiteStatus.Up : SiteStatus.Down;
+
+            UpdateRuntimeState(site.Id, status, result.CheckedAt, result.ResponseTimeMs, result.StatusCode, result.ErrorMessage);
+
+            try
+            {
+                await HandleAlertsAsync(site, result, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Alert handling failed: {ex.Message}");
+            }
         }
-        catch (Exception ex)
+        finally
         {
-            System.Diagnostics.Debug.WriteLine($"Alert handling failed: {ex.Message}");
+            _checkSemaphore.Release();
         }
     }
 

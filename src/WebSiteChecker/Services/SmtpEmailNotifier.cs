@@ -1,6 +1,7 @@
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
+using WebSiteChecker.Helpers;
 using WebSiteChecker.Models;
 
 namespace WebSiteChecker.Services;
@@ -16,15 +17,19 @@ public class SmtpEmailNotifier
 
     public async Task SendDownAlertAsync(MonitoredSite site, SiteCheckResult result, CancellationToken cancellationToken = default)
     {
-        var subject = $"[WebSiteChecker] DOWN: {site.Name} ({site.Url})";
+        var safeName = InputSanitizer.SanitizeForEmailText(site.Name);
+        var safeUrl = InputSanitizer.SanitizeForEmailText(site.Url);
+        var safeError = InputSanitizer.SanitizeForEmailText(result.ErrorMessage ?? "Bilinmiyor");
+
+        var subject = $"[WebSiteChecker] DOWN: {safeName} ({safeUrl})";
         var body = $"""
             Web sitesi erişilemiyor.
 
-            Site: {site.Name}
-            URL: {site.Url}
+            Site: {safeName}
+            URL: {safeUrl}
             Kontrol zamanı: {result.CheckedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}
             Durum kodu: {result.StatusCode?.ToString() ?? "Yok"}
-            Hata: {result.ErrorMessage ?? "Bilinmiyor"}
+            Hata: {safeError}
             Yanıt süresi: {result.ResponseTimeMs} ms
 
             — WebSiteChecker
@@ -35,12 +40,15 @@ public class SmtpEmailNotifier
 
     public async Task SendRecoveryAlertAsync(MonitoredSite site, SiteCheckResult result, CancellationToken cancellationToken = default)
     {
-        var subject = $"[WebSiteChecker] RECOVERED: {site.Name} ({site.Url})";
+        var safeName = InputSanitizer.SanitizeForEmailText(site.Name);
+        var safeUrl = InputSanitizer.SanitizeForEmailText(site.Url);
+
+        var subject = $"[WebSiteChecker] RECOVERED: {safeName} ({safeUrl})";
         var body = $"""
             Web sitesi tekrar erişilebilir durumda.
 
-            Site: {site.Name}
-            URL: {site.Url}
+            Site: {safeName}
+            URL: {safeUrl}
             Kontrol zamanı: {result.CheckedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}
             Durum kodu: {result.StatusCode}
             Yanıt süresi: {result.ResponseTimeMs} ms
