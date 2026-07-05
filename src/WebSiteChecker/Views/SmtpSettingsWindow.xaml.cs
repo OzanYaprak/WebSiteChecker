@@ -36,6 +36,46 @@ public partial class SmtpSettingsWindow : Window
         PasswordBox.PasswordChanged += (_, _) => _passwordChanged = true;
     }
 
+    private void GmailPresetButton_Click(object sender, RoutedEventArgs e)
+    {
+        var email = UsernameTextBox.Text.Trim();
+        if (string.IsNullOrEmpty(email))
+            email = FromTextBox.Text.Trim();
+
+        var settings = new SmtpSettings
+        {
+            ToAddress = ToTextBox.Text.Trim()
+        };
+        SmtpPresets.ApplyGmail(settings, string.IsNullOrEmpty(email) ? null : email);
+
+        HostTextBox.Text = settings.Host;
+        PortTextBox.Text = settings.Port.ToString();
+        UseSslCheckBox.IsChecked = settings.UseSsl;
+
+        if (!string.IsNullOrEmpty(settings.Username))
+        {
+            UsernameTextBox.Text = settings.Username;
+            FromTextBox.Text = settings.FromAddress;
+            if (!string.IsNullOrEmpty(settings.ToAddress))
+                ToTextBox.Text = settings.ToAddress;
+        }
+
+        DialogHelper.ShowInfo(
+            """
+            Gmail SMTP ön ayarı uygulandı.
+
+            Google hesabınızla giriş için normal şifre yerine Uygulama Parolası kullanın:
+
+            1. https://myaccount.google.com/apppasswords adresine gidin
+            2. İki adımlı doğrulamayı açın (kapalıysa)
+            3. "Mail" veya "Diğer" için 16 haneli uygulama parolası oluşturun
+            4. Kullanıcı adı / Gönderen / Alıcı alanlarına Gmail adresinizi yazın
+            5. Oluşturduğunuz uygulama parolasını Şifre alanına yapıştırın
+            6. Kaydet'e basın ve ana ekrandan "Test Maili Gönder" ile deneyin
+            """,
+            "Gmail Kurulumu");
+    }
+
     private void SaveButton_Click(object sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(HostTextBox.Text))

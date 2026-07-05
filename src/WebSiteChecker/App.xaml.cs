@@ -30,6 +30,7 @@ public partial class App : Application
             .ConfigureServices(services =>
             {
                 services.AddSingleton<ConfigStore>();
+                services.AddSingleton<ThemeService>();
                 services.AddSingleton<HttpHealthChecker>();
                 services.AddSingleton<SmtpEmailNotifier>();
                 services.AddSingleton<AlertStateTracker>();
@@ -42,6 +43,8 @@ public partial class App : Application
             .Build();
 
         await _host.StartAsync();
+
+        Services.GetRequiredService<ThemeService>().Initialize();
 
         _mainWindow = Services.GetRequiredService<MainWindow>();
         _mainWindow.Show();

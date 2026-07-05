@@ -1,0 +1,10 @@
+{
+  "host": "smtp.gmail.com",
+  "port": 587,
+  "useSsl": true,
+  "username": "sizin@gmail.com",
+  "fromAddress": "sizin@gmail.com",
+  "toAddress": "sizin@gmail.com",
+  "alertCooldownMinutes": 30,
+  "sendRecoveryEmail": true
+}

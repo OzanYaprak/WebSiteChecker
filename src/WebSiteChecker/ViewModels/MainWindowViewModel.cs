@@ -14,6 +14,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly ConfigStore _configStore;
     private readonly IWebsiteMonitorService _monitorService;
     private readonly SmtpEmailNotifier _emailNotifier;
+    private readonly ThemeService _themeService;
 
     public ObservableCollection<SiteListItemViewModel> Sites { get; } = [];
 
@@ -24,22 +25,41 @@ public partial class MainWindowViewModel : ObservableObject
     private string _monitorStatusText = "İzleme aktif";
 
     [ObservableProperty]
+    private bool _isMonitorPaused;
+
+    [ObservableProperty]
     private bool _startWithWindows;
+
+    [ObservableProperty]
+    private bool _isDarkMode;
+
+    [ObservableProperty]
+    private string _themeToggleText = "Koyu Mod";
 
     public MainWindowViewModel(
         ConfigStore configStore,
         IWebsiteMonitorService monitorService,
-        SmtpEmailNotifier emailNotifier)
+        SmtpEmailNotifier emailNotifier,
+        ThemeService themeService)
     {
         _configStore = configStore;
         _monitorService = monitorService;
         _emailNotifier = emailNotifier;
+        _themeService = themeService;
 
         _monitorService.SiteStateChanged += OnSiteStateChanged;
         _startWithWindows = StartupRegistryHelper.IsStartupEnabled();
+        _themeService.ThemeChanged += (_, _) => UpdateThemeState();
+        UpdateThemeState();
 
         LoadSites();
         UpdateMonitorStatus();
+    }
+
+    private void UpdateThemeState()
+    {
+        IsDarkMode = _themeService.IsDarkMode;
+        ThemeToggleText = IsDarkMode ? "Açık Mod" : "Koyu Mod";
     }
 
     private void LoadSites()
@@ -83,10 +103,16 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ToggleTheme()
+    {
+        _themeService.ToggleTheme();
+    }
+
+    [RelayCommand]
     private void AddSite()
     {
         var dialog = new AddEditSiteWindow();
-        if (dialog.ShowDialog() != true || dialog.ResultSite is null)
+        if (dialog.ShowDialogCentered() != true || dialog.ResultSite is null)
             return;
 
         var sites = _configStore.LoadSites();
@@ -110,7 +136,7 @@ public partial class MainWindowViewModel : ObservableObject
             return;
 
         var dialog = new AddEditSiteWindow(existing);
-        if (dialog.ShowDialog() != true || dialog.ResultSite is null)
+        if (dialog.ShowDialogCentered() != true || dialog.ResultSite is null)
             return;
 
         var sites = _configStore.LoadSites();
@@ -146,7 +172,7 @@ public partial class MainWindowViewModel : ObservableObject
     private void OpenSmtpSettings()
     {
         var dialog = new SmtpSettingsWindow(_configStore);
-        dialog.ShowDialog();
+        dialog.ShowDialogCentered();
     }
 
     [RelayCommand]
@@ -188,6 +214,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void UpdateMonitorStatus()
     {
-        MonitorStatusText = _monitorService.IsPaused ? "İzleme duraklatıldı" : "İzleme aktif";
+        IsMonitorPaused = _monitorService.IsPaused;
+        MonitorStatusText = IsMonitorPaused ? "İzleme duraklatıldı" : "İzleme aktif";
     }
 }

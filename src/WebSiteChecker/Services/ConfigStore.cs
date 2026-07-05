@@ -19,6 +19,7 @@ public class ConfigStore
     private readonly string _smtpPath;
     private readonly string _passwordPath;
     private readonly string _alertStatePath;
+    private readonly string _uiSettingsPath;
     private readonly object _lock = new();
 
     public ConfigStore()
@@ -32,6 +33,7 @@ public class ConfigStore
         _smtpPath = Path.Combine(_dataDirectory, "smtp-settings.json");
         _passwordPath = Path.Combine(_dataDirectory, "smtp-password.dat");
         _alertStatePath = Path.Combine(_dataDirectory, "monitor-state.json");
+        _uiSettingsPath = Path.Combine(_dataDirectory, "ui-settings.json");
     }
 
     public string DataDirectory => _dataDirectory;
@@ -126,6 +128,27 @@ public class ConfigStore
         {
             var json = JsonSerializer.Serialize(states.ToList(), JsonOptions);
             File.WriteAllText(_alertStatePath, json);
+        }
+    }
+
+    public UiSettings LoadUiSettings()
+    {
+        lock (_lock)
+        {
+            if (!File.Exists(_uiSettingsPath))
+                return new UiSettings();
+
+            var json = File.ReadAllText(_uiSettingsPath);
+            return JsonSerializer.Deserialize<UiSettings>(json, JsonOptions) ?? new UiSettings();
+        }
+    }
+
+    public void SaveUiSettings(UiSettings settings)
+    {
+        lock (_lock)
+        {
+            var json = JsonSerializer.Serialize(settings, JsonOptions);
+            File.WriteAllText(_uiSettingsPath, json);
         }
     }
 }
