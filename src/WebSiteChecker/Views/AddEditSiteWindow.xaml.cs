@@ -24,6 +24,7 @@ public partial class AddEditSiteWindow : Window
             TimeoutTextBox.Text = existing.TimeoutSeconds.ToString();
             StatusCodeTextBox.Text = existing.ExpectedStatusCode.ToString();
             EnabledCheckBox.IsChecked = existing.IsEnabled;
+            AllowPrivateNetworksCheckBox.IsChecked = existing.AllowPrivateNetworks;
         }
         else
         {
@@ -50,7 +51,8 @@ public partial class AddEditSiteWindow : Window
             IntervalSeconds = interval,
             TimeoutSeconds = timeout,
             ExpectedStatusCode = statusCode,
-            IsEnabled = EnabledCheckBox.IsChecked == true
+            IsEnabled = EnabledCheckBox.IsChecked == true,
+            AllowPrivateNetworks = AllowPrivateNetworksCheckBox.IsChecked == true
         };
 
         if (!SiteInputValidator.TryValidate(ResultSite, out var error))

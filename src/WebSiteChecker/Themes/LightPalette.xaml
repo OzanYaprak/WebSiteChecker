@@ -6,9 +6,9 @@
     <Color x:Key="BorderColor">#E5E7EB</Color>
     <Color x:Key="TextPrimaryColor">#111827</Color>
     <Color x:Key="TextSecondaryColor">#6B7280</Color>
-    <Color x:Key="PrimaryColor">#2563EB</Color>
-    <Color x:Key="PrimaryHoverColor">#1D4ED8</Color>
-    <Color x:Key="PrimaryPressedColor">#1E40AF</Color>
+    <Color x:Key="PrimaryColor">#C8102E</Color>
+    <Color x:Key="PrimaryHoverColor">#A50D25</Color>
+    <Color x:Key="PrimaryPressedColor">#8B0B20</Color>
     <Color x:Key="SuccessColor">#059669</Color>
     <Color x:Key="SuccessBgColor">#D1FAE5</Color>
     <Color x:Key="DangerColor">#DC2626</Color>
@@ -19,7 +19,7 @@
     <Color x:Key="DataGridRowBackgroundColor">#FFFFFF</Color>
     <Color x:Key="DataGridAlternatingRowColor">#FAFAFA</Color>
     <Color x:Key="DataGridRowHoverColor">#F9FAFB</Color>
-    <Color x:Key="DataGridRowSelectedColor">#EFF6FF</Color>
+    <Color x:Key="DataGridRowSelectedColor">#FCE8EB</Color>
     <Color x:Key="CheckBoxBoxBgColor">#FFFFFF</Color>
     <Color x:Key="CardShadowColor">#000000</Color>
 

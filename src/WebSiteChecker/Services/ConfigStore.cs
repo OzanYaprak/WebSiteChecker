@@ -2,6 +2,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using WebSiteChecker.Helpers;
 using WebSiteChecker.Models;
 
 namespace WebSiteChecker.Services;
@@ -64,10 +65,10 @@ public class ConfigStore
         lock (_lock)
         {
             if (!File.Exists(_smtpPath))
-                return new SmtpSettings();
+                return SmtpPresets.SaglikGovTr();
 
             var json = File.ReadAllText(_smtpPath);
-            return JsonSerializer.Deserialize<SmtpSettings>(json, JsonOptions) ?? new SmtpSettings();
+            return JsonSerializer.Deserialize<SmtpSettings>(json, JsonOptions) ?? SmtpPresets.SaglikGovTr();
         }
     }
 
@@ -87,9 +88,17 @@ public class ConfigStore
             if (!File.Exists(_passwordPath))
                 return null;
 
-            var encrypted = File.ReadAllBytes(_passwordPath);
-            var decrypted = ProtectedData.Unprotect(encrypted, null, DataProtectionScope.CurrentUser);
-            return Encoding.UTF8.GetString(decrypted);
+            try
+            {
+                var encrypted = File.ReadAllBytes(_passwordPath);
+                var decrypted = ProtectedData.Unprotect(encrypted, null, DataProtectionScope.CurrentUser);
+                return Encoding.UTF8.GetString(decrypted);
+            }
+            catch (CryptographicException)
+            {
+                File.Delete(_passwordPath);
+                return null;
+            }
         }
     }
 
@@ -97,6 +106,8 @@ public class ConfigStore
     {
         lock (_lock)
         {
+            password = SmtpConnectionHelper.NormalizeAppPassword(password);
+
             if (string.IsNullOrEmpty(password))
             {
                 if (File.Exists(_passwordPath))

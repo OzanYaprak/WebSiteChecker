@@ -20,10 +20,7 @@ public static class SiteInputValidator
             return false;
         }
 
-        if (!UrlValidator.IsValidHttpUrl(site.Url, out error))
-            return false;
-
-        if (!UrlSafetyValidator.IsUrlSafe(site.Url, out error))
+        if (!UrlValidator.IsValidHttpUrl(site.Url, out error, site.AllowPrivateNetworks))
             return false;
 
         if (site.IntervalSeconds < SiteLimits.MinIntervalSeconds || site.IntervalSeconds > SiteLimits.MaxIntervalSeconds)

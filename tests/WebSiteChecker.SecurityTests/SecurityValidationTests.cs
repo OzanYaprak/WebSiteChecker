@@ -95,6 +95,19 @@ public class SiteInputValidatorTests
     }
 
     [Fact]
+    public void TryValidate_AllowsPrivateNetworkUrlWhenFlagEnabled()
+    {
+        var site = CreateValidSite();
+        site.Url = "http://127.0.0.1";
+        site.AllowPrivateNetworks = true;
+
+        var result = SiteInputValidator.TryValidate(site, out var error);
+
+        Assert.True(result);
+        Assert.Null(error);
+    }
+
+    [Fact]
     public void TryValidate_AcceptsValidSite()
     {
         var site = CreateValidSite();

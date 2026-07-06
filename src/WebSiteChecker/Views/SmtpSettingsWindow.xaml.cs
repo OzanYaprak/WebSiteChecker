@@ -9,11 +9,14 @@ public partial class SmtpSettingsWindow : Window
 {
     private readonly ConfigStore _configStore;
     private bool _passwordChanged;
+    private bool _hasStoredPassword;
 
     public SmtpSettingsWindow(ConfigStore configStore)
     {
         InitializeComponent();
         _configStore = configStore;
+        PasswordBox.PasswordChanged += (_, _) => _passwordChanged = true;
+        Loaded += (_, _) => MaxHeight = SystemParameters.WorkArea.Height - 32;
         LoadSettings();
     }
 
@@ -29,11 +32,55 @@ public partial class SmtpSettingsWindow : Window
         CooldownTextBox.Text = settings.AlertCooldownMinutes.ToString();
         RecoveryCheckBox.IsChecked = settings.SendRecoveryEmail;
 
-        var existingPassword = _configStore.LoadSmtpPassword();
-        if (!string.IsNullOrEmpty(existingPassword))
-            PasswordBox.Password = "********";
+        _hasStoredPassword = !string.IsNullOrEmpty(_configStore.LoadSmtpPassword());
+        PasswordBox.Password = string.Empty;
+        _passwordChanged = false;
+        UpdatePasswordHint();
+    }
 
-        PasswordBox.PasswordChanged += (_, _) => _passwordChanged = true;
+    private void UpdatePasswordHint()
+    {
+        if (_hasStoredPassword && !_passwordChanged)
+        {
+            PasswordHintTextBlock.Text = "Kayıtlı şifre mevcut. Değiştirmek için yeni şifre girin.";
+            PasswordHintTextBlock.Visibility = Visibility.Visible;
+            return;
+        }
+
+        PasswordHintTextBlock.Text = string.Empty;
+        PasswordHintTextBlock.Visibility = Visibility.Collapsed;
+    }
+
+    private void SaglikGovTrPresetButton_Click(object sender, RoutedEventArgs e)
+    {
+        var settings = new SmtpSettings
+        {
+            ToAddress = ToTextBox.Text.Trim()
+        };
+        SmtpPresets.ApplySaglikGovTr(settings, string.IsNullOrWhiteSpace(settings.ToAddress) ? null : settings.ToAddress);
+
+        HostTextBox.Text = settings.Host;
+        PortTextBox.Text = settings.Port.ToString();
+        UseSslCheckBox.IsChecked = settings.UseSsl;
+        UsernameTextBox.Text = settings.Username;
+        FromTextBox.Text = settings.FromAddress;
+        if (!string.IsNullOrEmpty(settings.ToAddress))
+            ToTextBox.Text = settings.ToAddress;
+
+        DialogHelper.ShowInfo(
+            """
+            Sağlık Bakanlığı SMTP ön ayarı uygulandı.
+
+            Sunucu: eposta.saglik.gov.tr
+            Port: 587
+            SSL: Kapalı
+            Kullanıcı / Gönderen: hssgm.noreply@saglik.gov.tr
+
+            1. Alıcı alanına bildirim alacağınız e-posta adresini yazın
+            2. SMTP şifresini Şifre alanına girin
+            3. Kaydet'e basın ve "Test Maili Gönder" ile deneyin
+            """,
+            "Kurumsal SMTP");
     }
 
     private void GmailPresetButton_Click(object sender, RoutedEventArgs e)
@@ -96,24 +143,71 @@ public partial class SmtpSettingsWindow : Window
             return;
         }
 
+        var fromAddress = FromTextBox.Text.Trim();
+        var toAddress = ToTextBox.Text.Trim();
+        var username = UsernameTextBox.Text.Trim();
+
+        if (!SmtpConnectionHelper.TryParseMailbox(fromAddress, out _))
+        {
+            DialogHelper.ShowError("Geçerli bir gönderen e-posta adresi girin.");
+            return;
+        }
+
+        if (!SmtpConnectionHelper.TryParseMailbox(toAddress, out _))
+        {
+            DialogHelper.ShowError("Geçerli bir alıcı e-posta adresi girin.");
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(username) && !SmtpConnectionHelper.TryParseMailbox(username, out _))
+        {
+            DialogHelper.ShowError("Geçerli bir SMTP kullanıcı adı (e-posta) girin.");
+            return;
+        }
+
         var settings = new SmtpSettings
         {
             Host = HostTextBox.Text.Trim(),
             Port = port,
             UseSsl = UseSslCheckBox.IsChecked == true,
-            Username = UsernameTextBox.Text.Trim(),
-            FromAddress = FromTextBox.Text.Trim(),
-            ToAddress = ToTextBox.Text.Trim(),
+            Username = username,
+            FromAddress = fromAddress,
+            ToAddress = toAddress,
             AlertCooldownMinutes = cooldown,
             SendRecoveryEmail = RecoveryCheckBox.IsChecked == true
         };
+
+        try
+        {
+            SmtpConnectionHelper.ValidateSenderAlignment(settings);
+        }
+        catch (InvalidOperationException ex)
+        {
+            DialogHelper.ShowError(ex.Message);
+            return;
+        }
 
         _configStore.SaveSmtpSettings(settings);
 
         if (_passwordChanged)
         {
-            var password = PasswordBox.Password;
-            _configStore.SaveSmtpPassword(string.IsNullOrWhiteSpace(password) ? null : password);
+            var password = SmtpConnectionHelper.NormalizeAppPassword(PasswordBox.Password);
+            if (string.IsNullOrEmpty(password))
+            {
+                DialogHelper.ShowError("SMTP şifresi boş olamaz.");
+                return;
+            }
+
+            _configStore.SaveSmtpPassword(password);
+            _hasStoredPassword = true;
+            _passwordChanged = false;
+            PasswordBox.Password = string.Empty;
+            UpdatePasswordHint();
+        }
+        else if (!_hasStoredPassword)
+        {
+            DialogHelper.ShowError("SMTP şifresi boş. Şifreyi Şifre alanına girip tekrar kaydedin.");
+            return;
         }
 
         DialogResult = true;

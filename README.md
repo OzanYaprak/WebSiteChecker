@@ -1,6 +1,10 @@
 # WebSiteChecker
 
+> **Dahili dokümantasyon** — Bu README yalnızca proje sahibi tarafından okunur. Private kullanım; hassas yapılandırma ve güvenlik notları içerir.
+
 Birden fazla web sitesini periyodik olarak kontrol eden ve erişilemediğinde e-posta ile bildiren Windows masaüstü uygulaması.
+
+**Hedef platform:** Windows 10/11 · **Çerçeve:** .NET 8 (WPF)
 
 ## Özellikler
 
@@ -8,8 +12,10 @@ Birden fazla web sitesini periyodik olarak kontrol eden ve erişilemediğinde e-
 - Arka planda otomatik HTTP kontrolü (HEAD, gerekirse GET)
 - Site erişilemediğinde SMTP ile e-posta bildirimi
 - Site tekrar erişilebilir olunca bilgilendirme maili
+- Kurumsal (Sağlık Bakanlığı) ve Gmail SMTP ön ayarları
+- Açık / koyu tema
 - Sistem tepsisinde (tray) çalışma — pencere kapatılsa bile izleme devam eder
-- Windows ile otomatik başlatma seçeneği
+- VPN veya kurum içi ağ hedefleri için isteğe bağlı özel ağ izni
 
 ## Gereksinimler
 
@@ -27,6 +33,26 @@ Release derlemesi:
 
 ```bash
 dotnet publish src/WebSiteChecker -c Release -r win-x64 --self-contained false
+```
+
+Güvenlik testleri:
+
+```bash
+dotnet test tests/WebSiteChecker.SecurityTests/WebSiteChecker.SecurityTests.csproj
+```
+
+## Proje Yapısı
+
+```
+WebSiteChecker/
+├── config/                          # Örnek SMTP yapılandırmaları (şifre içermez)
+├── src/WebSiteChecker/
+│   ├── Helpers/                     # URL doğrulama, SMTP, e-posta şablonları
+│   ├── Models/                      # Site, SMTP ve durum modelleri
+│   ├── Services/                    # HTTP kontrol, izleme, yapılandırma deposu
+│   ├── ViewModels/                  # Ana pencere MVVM
+│   └── Views/                       # Site ekleme/düzenleme, SMTP ayarları
+└── tests/WebSiteChecker.SecurityTests/  # Güvenlik birim testleri
 ```
 
 ## İlk Kurulum
@@ -53,6 +79,36 @@ Uygulama site erişilemediğinde e-posta göndermek için SMTP kullanır. Ayarla
 | Alıcı | Bildirimlerin iletileceği e-posta adresi |
 | Uyarı bekleme (dk) | Aynı site için tekrar down maili bekleme süresi (varsayılan: 30) |
 | Site tekrar erişilebilir olunca mail gönder | Recovery bildirimi açık/kapalı |
+
+> **Gönderen / kullanıcı eşleşmesi:** SMTP sunucusuna hangi hesapla giriş yapılıyorsa **Gönderen** ve **Kullanıcı adı** alanları da aynı e-posta olmalıdır. Alıcı farklı bir adres olabilir.
+
+### Sağlık Bakanlığı (kurumsal SMTP)
+
+Uygulama içinde **Sağlık Bakanlığı ön ayarı** butonu ile aşağıdaki değerler otomatik doldurulur:
+
+| Alan | Değer |
+|------|-------|
+| SMTP Sunucu | `eposta.saglik.gov.tr` |
+| Port | `587` |
+| SSL kullan | Hayır (sunucu STARTTLS destekliyorsa bağlantı yine de şifrelenir) |
+| Kullanıcı adı / Gönderen | `hssgm.noreply@saglik.gov.tr` |
+| Alıcı | Bildirim alacağınız kurumsal e-posta adresi |
+| Şifre | Kurumsal SMTP hesabı parolası |
+
+Örnek yapılandırma: `config/smtp-settings.saglik.example.json`
+
+```json
+{
+  "host": "eposta.saglik.gov.tr",
+  "port": 587,
+  "useSsl": false,
+  "username": "hssgm.noreply@saglik.gov.tr",
+  "fromAddress": "hssgm.noreply@saglik.gov.tr",
+  "toAddress": "bildirim-alici@saglik.gov.tr",
+  "alertCooldownMinutes": 30,
+  "sendRecoveryEmail": true
+}
+```
 
 ### Gmail (Google) ile test
 
@@ -121,12 +177,66 @@ Ayarlar ve site listesi şu klasörde saklanır:
 
 ```
 %AppData%\WebSiteChecker\
-├── sites.json
-├── smtp-settings.json
-├── smtp-password.dat   (DPAPI ile şifrelenmiş)
-├── ui-settings.json    (tema tercihi)
-└── monitor-state.json
 ```
+
+Tam yol örneği:
+
+```
+C:\Users\<Windows-kullanıcı-adın>\AppData\Roaming\WebSiteChecker\
+```
+
+Klasörü hızlı açmak: **Win + R** → `%AppData%\WebSiteChecker` → Enter
+
+```
+%AppData%\WebSiteChecker\
+├── sites.json              # İzlenen siteler (ad, URL, aralık, timeout vb.)
+├── smtp-settings.json      # SMTP sunucu ayarları (şifre YOK — düz metin JSON)
+├── smtp-password.dat       # Yalnızca SMTP şifresi (DPAPI ile şifreli bayt dizisi)
+├── ui-settings.json        # Tema tercihi
+└── monitor-state.json      # Down/recovery bildirim durumu (cooldown takibi)
+```
+
+**Önemli:** Gerçek veriler proje klasöründe (`Desktop\...\WebSiteChecker`) değil; yalnızca `%AppData%` altında. `config/*.example.json` dosyaları sadece örnek şablon, çalışma zamanında kullanılmaz.
+
+### SMTP kimlik bilgileri nerede tutulur?
+
+SMTP bilgileri bilinçli olarak **iki ayrı dosyaya** bölünmüştür:
+
+| Ne | Dosya | Format | Şifre var mı? |
+|----|-------|--------|---------------|
+| Sunucu, port, SSL, kullanıcı adı, gönderen, alıcı, cooldown | `smtp-settings.json` | Okunabilir JSON | Hayır |
+| SMTP parolası / uygulama parolası | `smtp-password.dat` | DPAPI şifreli binary | Evet (şifreli) |
+
+Kod tarafı: `ConfigStore.cs` — `_smtpPath` ve `_passwordPath`
+
+**Kaydetme akışı** (`SmtpSettingsWindow` → Kaydet):
+
+1. Formdaki sunucu bilgileri → `SaveSmtpSettings()` → `smtp-settings.json`
+2. Şifre alanı değiştiyse → `SaveSmtpPassword()` → `smtp-password.dat`
+3. Kayıttan sonra `PasswordBox` temizlenir; şifre UI'da bellekte tutulmaz
+4. Şifre alanına dokunmadan kaydedersen mevcut `smtp-password.dat` olduğu gibi kalır
+
+**Şifreleme detayı:**
+
+- API: `ProtectedData.Protect` / `Unprotect` (`System.Security.Cryptography`)
+- Kapsam: `DataProtectionScope.CurrentUser` — yalnızca şifreyi kaydeden Windows kullanıcısı, aynı makinede çözebilir
+- `smtp-password.dat` dosyasını Not Defteri ile açarsan okunabilir metin görmezsin; anlamsız baytlar görürsün
+- Başka Windows kullanıcısı veya başka PC bu dosyayı açsa şifreyi okuyamaz
+
+**Mail gönderirken:** `SmtpEmailNotifier` → `LoadSmtpSettings()` + `LoadSmtpPassword()` ile ikisini birleştirir, SMTP oturumu açar, iş bitince bellekten gider.
+
+Bu klasör yalnızca oturum açmış Windows kullanıcısı tarafından okunabilir; `smtp-password.dat` başka bir kullanıcı hesabıyla açılamaz.
+
+## Özel Ağ İzni (VPN / Kurum İçi)
+
+Varsayılan olarak uygulama yalnızca genel internet adreslerine istek gönderir. VPN veya kurum içi ağdaki siteleri izlemek için site eklerken **Özel ağlara izin ver** seçeneğini açın.
+
+| Durum | Davranış |
+|-------|----------|
+| Kapalı (varsayılan) | `127.0.0.1`, `192.168.x`, `10.x` vb. engellenir |
+| Açık | Özel IP ve yerel hostname'lere istek gönderilebilir |
+
+> Bu seçeneği yalnızca güvenilir iç siteler için kullanın. Açıkken SSRF koruması gevşetilir.
 
 ## Güvenlik
 
@@ -134,19 +244,22 @@ Uygulama, kullanıcı girdisi ve ağ istekleri için savunma katmanları içerir
 
 ### SSRF koruması (Server-Side Request Forgery)
 
-Site URL'leri yalnızca genel internet adreslerine yönlendirilebilir. İç ağ ve yerel hedeflere istek gönderilmesi engellenir.
+Site URL'leri varsayılan olarak yalnızca genel internet adreslerine yönlendirilebilir. İç ağ ve yerel hedeflere istek gönderilmesi engellenir.
 
 | Kontrol | Açıklama |
 |---------|----------|
 | `UrlSafetyValidator` | Kayıt ve istek öncesi URL doğrulama |
-| Özel IP engeli | `10.x`, `172.16–31.x`, `192.168.x`, `127.x`, `169.254.x`, `0.0.0.0` |
-| Host engeli | `localhost`, `*.local`, `metadata.google.internal` |
-| DNS doğrulama | Host adı çözümlendikten sonra dönen IP'ler de kontrol edilir |
-| Redirect koruması | `HttpHealthChecker` otomatik yönlendirmeyi manuel takip eder; her hop'ta URL yeniden doğrulanır (max 10 yönlendirme) |
+| Özel IPv4 engeli | `10.x`, `172.16–31.x`, `192.168.x`, `127.x`, `169.254.x`, `100.64–127.x` (CGNAT), `192.0.0.0/24`, `198.18–19.x`, `0.0.0.0`, multicast/rezerve `224+` |
+| IPv6 engeli | `::1`, `::`, link-local (`fe80::/10`), unique local (`fc00::/7`), multicast (`ff00::/8`), NAT64 (`64:ff9b::/96`) |
+| IPv4-mapped bypass engeli | `::ffff:127.0.0.1` gibi adresler kontrol öncesi IPv4'e indirgenir |
+| Host engeli | `localhost`, `localhost.` (sondaki nokta), `*.local`, `metadata.google.internal` |
+| DNS doğrulama | Host adı çözümlendikten sonra dönen tüm IP'ler kontrol edilir |
+| DNS rebinding koruması | `HttpHealthChecker` TCP bağlantısı kurulurken IP'leri tekrar doğrular; ön kontrol ile bağlantı anındaki DNS cevabı farklı olsa bile iç ağa erişim engellenir |
+| Redirect koruması | Otomatik yönlendirme manuel takip edilir; her hop'ta URL yeniden doğrulanır (en fazla 10 yönlendirme) |
 
-**Reddedilen örnek URL'ler:** `http://127.0.0.1`, `http://192.168.1.1`, `http://169.254.169.254`, `http://localhost`
+**Reddedilen örnek URL'ler:** `http://127.0.0.1`, `http://192.168.1.1`, `http://169.254.169.254`, `http://localhost`, `http://[::ffff:127.0.0.1]`, `http://localhost.`
 
-Harici bir URL iç ağa yönlendirse bile (redirect), ikinci adımda engellenir.
+Harici bir URL iç ağa yönlendirse bile (redirect veya DNS rebinding), bağlantı kurulmadan engellenir.
 
 ### Kaynak limitleri (DoS önleme)
 
@@ -163,19 +276,26 @@ Limitler `SiteLimits` ve `SiteInputValidator` ile site ekleme/düzenleme sıras�
 
 | Önlem | Açıklama |
 |-------|----------|
-| DPAPI şifreleme | SMTP şifresi `smtp-password.dat` dosyasında Windows DPAPI ile şifrelenir |
+| DPAPI şifreleme | SMTP şifresi `smtp-password.dat` dosyasında Windows DPAPI (`DataProtectionScope.CurrentUser`) ile şifrelenir |
+| Fırsatçı STARTTLS | SSL kapalı olsa bile sunucu STARTTLS destekliyorsa kimlik bilgileri şifreli kanal üzerinden gönderilir (`StartTlsWhenAvailable`) |
+| Gönderen doğrulama | Gönderen adresi ile SMTP kullanıcı adının aynı hesap olması zorunludur |
 | Header injection engeli | Site adında `\r`, `\n`, `\0` karakterleri reddedilir (`InputSanitizer`) |
-| E-posta sanitizasyonu | Bildirim konu ve gövdesindeki metinler gönderim öncesi temizlenir |
+| E-posta sanitizasyonu | Bildirim konusu ve gövdesindeki kullanıcı metinleri gönderim öncesi temizlenir |
+| HTML encoding | E-posta şablonundaki dinamik alanlar `HtmlEncode` ile kaçışlanır (`EmailTemplateBuilder`) |
 
 ### Hata mesajı sızıntısı
 
-HTTP kontrol hatalarında kullanıcıya genel mesaj gösterilir (`Bağlantı hatası`, `İstek zaman aşımına uğradı`). Teknik detaylar yalnızca debug çıktısına yazılır; UI ve e-postada iç yapı bilgisi paylaşılmaz.
+| Katman | Davranış |
+|--------|----------|
+| HTTP kontrol | Kullanıcıya genel mesaj (`Bağlantı hatası`, `İstek zaman aşımına uğradı`); teknik detay yalnızca debug çıktısında |
+| Yakalanmamış UI hataları | Stack trace kullanıcıya gösterilmez; yalnızca hata mesajı gösterilir, detay Debug'a yazılır |
+| E-posta bildirimleri | İç yapı veya dosya yolu bilgisi paylaşılmaz |
 
 ### Mevcut güvenli varsayılanlar
 
 - URL şeması yalnızca `http` / `https` (`UrlValidator`)
-- Windows başlangıç kaydı yalnızca `HKCU\...\Run` (`StartupRegistryHelper`)
 - SMTP ayarları ve site listesi `%AppData%` altında kullanıcıya özel dizinde saklanır
+- Örnek yapılandırma dosyaları (`config/`) şifre içermez; gerçek parolalar yalnızca uygulama içinden kaydedilir
 
 ### Güvenlik testleri
 
@@ -188,7 +308,10 @@ dotnet test tests/WebSiteChecker.SecurityTests/WebSiteChecker.SecurityTests.cspr
 Test kapsamı:
 
 - SSRF URL engelleme (`UrlSafetyValidator`)
+- Özel ağ izni davranışı (`allowPrivateNetworks`)
+- SMTP bağlantı ve gönderen doğrulama (`SmtpConnectionHelper`)
 - SMTP header injection karakterleri (`InputSanitizer`)
+- E-posta HTML encoding (`EmailTemplateBuilder`)
 - Site giriş limitleri (`SiteInputValidator`, `SiteLimits`)
 
 ### Manuel güvenlik kontrol listesi
@@ -197,9 +320,12 @@ Uygulamayı çalıştırarak şunları doğrulayabilirsiniz:
 
 1. Site URL olarak `http://127.0.0.1` ekleyin → reddedilmeli
 2. `http://192.168.0.1` ekleyin → reddedilmeli
-3. Site adına `\r\n` içeren metin girin → reddedilmeli
-4. 51. siteyi eklemeyi deneyin → limit uyarısı gelmeli
-5. `smtp-password.dat` dosyasını başka bir Windows kullanıcısıyla açmayı deneyin → DPAPI engellemeli
+3. `http://[::ffff:127.0.0.1]` ekleyin → reddedilmeli
+4. `http://localhost.` (sondaki nokta ile) ekleyin → reddedilmeli
+5. Site adına `\r\n` içeren metin girin → reddedilmeli
+6. 51. siteyi eklemeyi deneyin → limit uyarısı gelmeli
+7. `smtp-password.dat` dosyasını başka bir Windows kullanıcısıyla açmayı deneyin → DPAPI engellemeli
+8. Özel ağ izni kapalıyken iç IP'li site → reddedilmeli; izin açıkken → kabul edilmeli
 
 ## Tray Davranışı
 
@@ -213,3 +339,58 @@ Uygulamayı çalıştırarak şunları doğrulayabilirsiniz:
 - Site hâlâ erişilemezken tekrar mail gönderilmez.
 - Site tekrar erişilebilir olunca (ayar açıksa) recovery maili gönderilir.
 - Aynı site kısa süre içinde tekrar down olursa, bekleme süresi (varsayılan 30 dk) dolmadan yeni down maili gönderilmez.
+
+---
+
+## Dahili Notlar (Cursor oturumu özeti)
+
+Bu bölüm güvenlik incelemesi ve SMTP saklama konuşmalarından derlenmiştir. İleride hatırlamak için burada duruyor.
+
+### Güvenlik incelemesinde kapatılan açıklar
+
+| # | Sorun | Risk | Çözüm | Değişen dosya |
+|---|-------|------|-------|---------------|
+| 1 | IPv4-mapped IPv6 bypass (`::ffff:127.0.0.1`) | SSRF ile localhost'a erişim | Kontrol öncesi `MapToIPv4()` | `UrlSafetyValidator.cs` |
+| 2 | Eksik özel IP aralıkları (CGNAT, benchmark, multicast, NAT64) | İç ağ/metadata hedeflerine istek | Genişletilmiş `IsBlockedIpAddress` | `UrlSafetyValidator.cs` |
+| 3 | `localhost.` sondaki nokta bypass | Host engeli aşımı | `Host.TrimEnd('.')` | `UrlSafetyValidator.cs` |
+| 4 | DNS rebinding (TOCTOU) | Ön kontrol güvenli IP, bağlantıda 127.0.0.1 | `ConnectCallback` ile bağlantı anında IP doğrulama | `HttpHealthChecker.cs` |
+| 5 | SSL kapalıyken düz metin SMTP | Kimlik bilgisi sniffing | `StartTlsWhenAvailable` | `SmtpConnectionHelper.cs` |
+| 6 | UI'da stack trace gösterimi | İç yapı / yol sızıntısı | Yalnızca `Message`, detay Debug'a | `App.xaml.cs` |
+
+### İncelenip sağlam bulunanlar (dokunulmadı)
+
+- SMTP şifresinin DPAPI (`CurrentUser`) ile ayrı dosyada tutulması
+- E-posta HTML'inde `WebUtility.HtmlEncode`
+- Site adında CRLF/header injection kontrolü (`InputSanitizer`)
+- Redirect zincirinde her hop'ta URL yeniden doğrulama (max 10)
+- Port, aralık, site sayısı ve eşzamanlılık limitleri
+- Gönderen / SMTP kullanıcı adı eşleşme zorunluluğu
+
+### Bilinçli olarak yapılmayan
+
+- DPAPI'ye ek **entropy** eklenmedi — mevcut `smtp-password.dat` dosyaları çözülemez hale gelirdi; sıfırdan şifre girmek gerekirdi.
+
+### Kurumsal SMTP (Sağlık) — pratik not
+
+Ön ayarda **SSL kullan = Hayır** görünür; kod artık `StartTlsWhenAvailable` kullanıyor. `eposta.saglik.gov.tr` STARTTLS sunuyorsa bağlantı şifrelenir. Sunucu sertifikası geçersizse test mailinde sertifika hatası alabilirsin — o durumda haber ver, ayrı ele alınır.
+
+### Yedekleme / taşıma
+
+Başka PC'ye veya kullanıcıya taşırken:
+
+- `smtp-settings.json` → doğrudan kopyalanabilir
+- `smtp-password.dat` → **kopyalansa bile** farklı kullanıcı/PC'de DPAPI çözmez; SMTP Ayarları'ndan şifreyi yeniden girmen gerekir
+- `sites.json`, `monitor-state.json`, `ui-settings.json` → kopyalanabilir
+
+### Hızlı komutlar (hatırlatma)
+
+```bash
+# Çalıştır
+cd src/WebSiteChecker && dotnet run
+
+# Güvenlik testleri
+dotnet test tests/WebSiteChecker.SecurityTests/WebSiteChecker.SecurityTests.csproj
+
+# Release publish
+dotnet publish src/WebSiteChecker -c Release -r win-x64 --self-contained false
+```

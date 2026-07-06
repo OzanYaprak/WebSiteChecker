@@ -1,6 +1,8 @@
+using System.IO;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
+using MimeKit.Utils;
 using WebSiteChecker.Helpers;
 using WebSiteChecker.Models;
 
@@ -21,21 +23,16 @@ public class SmtpEmailNotifier
         var safeUrl = InputSanitizer.SanitizeForEmailText(site.Url);
         var safeError = InputSanitizer.SanitizeForEmailText(result.ErrorMessage ?? "Bilinmiyor");
 
-        var subject = $"[WebSiteChecker] DOWN: {safeName} ({safeUrl})";
-        var body = $"""
-            Web sitesi erişilemiyor.
+        var subject = $"[{BrandAssets.DirectorateShortName}] Site Erişim Uyarısı: {safeName}";
+        var body = EmailTemplateBuilder.BuildDownAlert(
+            safeName,
+            safeUrl,
+            result.CheckedAt.ToLocalTime(),
+            result.StatusCode?.ToString(),
+            safeError,
+            result.ResponseTimeMs);
 
-            Site: {safeName}
-            URL: {safeUrl}
-            Kontrol zamanı: {result.CheckedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}
-            Durum kodu: {result.StatusCode?.ToString() ?? "Yok"}
-            Hata: {safeError}
-            Yanıt süresi: {result.ResponseTimeMs} ms
-
-            — WebSiteChecker
-            """;
-
-        await SendEmailAsync(subject, body, cancellationToken);
+        await SendEmailAsync(subject, body.Html, body.Plain, cancellationToken);
     }
 
     public async Task SendRecoveryAlertAsync(MonitoredSite site, SiteCheckResult result, CancellationToken cancellationToken = default)
@@ -43,75 +40,90 @@ public class SmtpEmailNotifier
         var safeName = InputSanitizer.SanitizeForEmailText(site.Name);
         var safeUrl = InputSanitizer.SanitizeForEmailText(site.Url);
 
-        var subject = $"[WebSiteChecker] RECOVERED: {safeName} ({safeUrl})";
-        var body = $"""
-            Web sitesi tekrar erişilebilir durumda.
+        var subject = $"[{BrandAssets.DirectorateShortName}] Site Tekrar Erişilebilir: {safeName}";
+        var body = EmailTemplateBuilder.BuildRecoveryAlert(
+            safeName,
+            safeUrl,
+            result.CheckedAt.ToLocalTime(),
+            result.StatusCode,
+            result.ResponseTimeMs);
 
-            Site: {safeName}
-            URL: {safeUrl}
-            Kontrol zamanı: {result.CheckedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}
-            Durum kodu: {result.StatusCode}
-            Yanıt süresi: {result.ResponseTimeMs} ms
-
-            — WebSiteChecker
-            """;
-
-        await SendEmailAsync(subject, body, cancellationToken);
+        await SendEmailAsync(subject, body.Html, body.Plain, cancellationToken);
     }
 
     public async Task SendTestEmailAsync(CancellationToken cancellationToken = default)
     {
-        var subject = "[WebSiteChecker] Test e-postası";
-        var body = """
-            Bu bir test e-postasıdır.
+        var subject = $"[{BrandAssets.DirectorateShortName}] Test E-postası";
+        var body = EmailTemplateBuilder.BuildTestEmail();
 
-            SMTP ayarlarınız doğru yapılandırılmış görünüyor.
-
-            — WebSiteChecker
-            """;
-
-        await SendEmailAsync(subject, body, cancellationToken);
+        await SendEmailAsync(subject, body.Html, body.Plain, cancellationToken);
     }
 
-    private async Task SendEmailAsync(string subject, string body, CancellationToken cancellationToken)
+    private async Task SendEmailAsync(
+        string subject,
+        string htmlBody,
+        string plainBody,
+        CancellationToken cancellationToken)
     {
         var settings = _configStore.LoadSmtpSettings();
         var password = _configStore.LoadSmtpPassword();
 
-        ValidateSettings(settings, password);
+        SmtpConnectionHelper.ValidateSettings(settings, password);
 
         var message = new MimeMessage();
-        message.From.Add(MailboxAddress.Parse(settings.FromAddress));
-        message.To.Add(MailboxAddress.Parse(settings.ToAddress));
+        message.From.Add(MailboxAddress.Parse(settings.FromAddress.Trim()));
+        message.To.Add(MailboxAddress.Parse(settings.ToAddress.Trim()));
         message.Subject = subject;
-        message.Body = new TextPart("plain") { Text = body };
+        message.Body = CreateBrandedBody(htmlBody, plainBody);
 
         using var client = new SmtpClient();
-        var secureOptions = settings.UseSsl
-            ? (settings.Port == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls)
-            : SecureSocketOptions.StartTlsWhenAvailable;
+        var secureOptions = SmtpConnectionHelper.ResolveSecureSocketOptions(settings.Port, settings.UseSsl);
+        var username = SmtpConnectionHelper.ResolveUsername(settings);
 
-        await client.ConnectAsync(settings.Host, settings.Port, secureOptions, cancellationToken);
-
-        if (!string.IsNullOrWhiteSpace(settings.Username))
-            await client.AuthenticateAsync(settings.Username, password!, cancellationToken);
-
-        await client.SendAsync(message, cancellationToken);
-        await client.DisconnectAsync(true, cancellationToken);
+        try
+        {
+            await client.ConnectAsync(settings.Host.Trim(), settings.Port, secureOptions, cancellationToken);
+            await client.AuthenticateAsync(username, password!, cancellationToken);
+            await client.SendAsync(message, cancellationToken);
+            await client.DisconnectAsync(true, cancellationToken);
+        }
+        catch (AuthenticationException ex)
+        {
+            throw new InvalidOperationException(
+                "SMTP kimlik doğrulaması başarısız. Kullanıcı adı ve şifreyi kontrol edin.",
+                ex);
+        }
+        catch (SmtpCommandException ex)
+        {
+            var detailedMessage = SmtpConnectionHelper.DescribeSmtpRejection(ex, settings);
+            throw new InvalidOperationException(
+                detailedMessage ?? $"SMTP sunucusu isteği reddetti: {ex.Message}",
+                ex);
+        }
+        catch (SmtpProtocolException ex)
+        {
+            throw new InvalidOperationException($"SMTP bağlantı hatası: {ex.Message}", ex);
+        }
     }
 
-    private static void ValidateSettings(SmtpSettings settings, string? password)
+    private static MimeEntity CreateBrandedBody(string htmlBody, string plainBody)
     {
-        if (string.IsNullOrWhiteSpace(settings.Host))
-            throw new InvalidOperationException("SMTP sunucu adresi tanımlı değil.");
+        var builder = new BodyBuilder
+        {
+            HtmlBody = htmlBody,
+            TextBody = plainBody
+        };
 
-        if (string.IsNullOrWhiteSpace(settings.FromAddress))
-            throw new InvalidOperationException("Gönderen e-posta adresi tanımlı değil.");
+        using var logoStream = BrandAssets.OpenLogoStream();
+        var logoCopy = new MemoryStream();
+        logoStream.CopyTo(logoCopy);
+        logoCopy.Position = 0;
 
-        if (string.IsNullOrWhiteSpace(settings.ToAddress))
-            throw new InvalidOperationException("Alıcı e-posta adresi tanımlı değil.");
+        var logo = (MimePart)builder.LinkedResources.Add("hssgm-logo.png", logoCopy, ContentType.Parse("image/png"));
+        logo.ContentId = EmailTemplateBuilder.LogoContentId;
+        logo.ContentDisposition = new ContentDisposition(ContentDisposition.Inline);
+        logo.ContentTransferEncoding = ContentEncoding.Base64;
 
-        if (!string.IsNullOrWhiteSpace(settings.Username) && string.IsNullOrWhiteSpace(password))
-            throw new InvalidOperationException("SMTP şifresi tanımlı değil.");
+        return builder.ToMessageBody();
     }
 }

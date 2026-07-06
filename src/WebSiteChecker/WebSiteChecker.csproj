@@ -11,6 +11,14 @@
 
   <ItemGroup>
     <Resource Include="Assets\tray-icon.ico" />
+    <Resource Include="Assets\hssgm-logo.png" />
+    <Resource Include="Assets\Fonts\*.otf" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\hssgm-logo.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>

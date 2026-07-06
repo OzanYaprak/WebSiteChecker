@@ -1,0 +1,10 @@
+{
+  "host": "eposta.saglik.gov.tr",
+  "port": 587,
+  "useSsl": false,
+  "username": "hssgm.noreply@saglik.gov.tr",
+  "fromAddress": "hssgm.noreply@saglik.gov.tr",
+  "toAddress": "bildirim-alici@saglik.gov.tr",
+  "alertCooldownMinutes": 30,
+  "sendRecoveryEmail": true
+}

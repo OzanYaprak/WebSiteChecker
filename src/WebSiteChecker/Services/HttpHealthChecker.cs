@@ -1,6 +1,8 @@
 using System.Diagnostics;
+using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using WebSiteChecker.Helpers;
 using WebSiteChecker.Models;
 
@@ -9,6 +11,8 @@ namespace WebSiteChecker.Services;
 public class HttpHealthChecker
 {
     private const int MaxRedirects = 10;
+    private static readonly HttpRequestOptionsKey<bool> AllowPrivateNetworksKey = new("AllowPrivateNetworks");
+    private static readonly HttpRequestOptionsKey<Uri> OriginalRequestUriKey = new("OriginalRequestUri");
 
     private static readonly HttpClient SharedClient = new(new SafeRedirectHandler())
     {
@@ -21,7 +25,7 @@ public class HttpHealthChecker
 
         try
         {
-            if (!UrlSafetyValidator.IsUrlSafe(site.Url, out var safetyError))
+            if (!UrlSafetyValidator.IsUrlSafe(site.Url, out var safetyError, site.AllowPrivateNetworks))
             {
                 stopwatch.Stop();
                 return BuildResult(site.Id, false, null, stopwatch.ElapsedMilliseconds, safetyError);
@@ -31,6 +35,8 @@ public class HttpHealthChecker
             cts.CancelAfter(TimeSpan.FromSeconds(site.TimeoutSeconds));
 
             using var headRequest = new HttpRequestMessage(HttpMethod.Head, site.Url);
+            headRequest.Options.Set(AllowPrivateNetworksKey, site.AllowPrivateNetworks);
+            headRequest.Options.Set(OriginalRequestUriKey, headRequest.RequestUri!);
             using var headResponse = await SharedClient.SendAsync(
                 headRequest,
                 HttpCompletionOption.ResponseHeadersRead,
@@ -68,6 +74,8 @@ public class HttpHealthChecker
         stopwatch.Restart();
 
         using var getRequest = new HttpRequestMessage(HttpMethod.Get, site.Url);
+        getRequest.Options.Set(AllowPrivateNetworksKey, site.AllowPrivateNetworks);
+        getRequest.Options.Set(OriginalRequestUriKey, getRequest.RequestUri!);
         using var getResponse = await SharedClient.SendAsync(
             getRequest,
             HttpCompletionOption.ResponseHeadersRead,
@@ -82,11 +90,15 @@ public class HttpHealthChecker
 
     private static string ToPublicErrorMessage(Exception ex)
     {
-        if (ex is InvalidOperationException)
-            return ex.Message;
+        for (var current = ex; current is not null; current = current.InnerException)
+        {
+            if (current is InvalidOperationException)
+                return current.Message;
 
-        if (ex.InnerException is InvalidOperationException inner)
-            return inner.Message;
+            if (current is HttpRequestException { Message: var message }
+                && message.Contains("Yerel veya özel ağ", StringComparison.Ordinal))
+                return message;
+        }
 
         Debug.WriteLine($"HTTP check error: {ex}");
         return "Bağlantı hatası.";
@@ -113,11 +125,99 @@ public class HttpHealthChecker
         };
     }
 
-    private sealed class SafeRedirectHandler : HttpClientHandler
+    private sealed class SafeRedirectHandler : DelegatingHandler
     {
         public SafeRedirectHandler()
         {
-            AllowAutoRedirect = false;
+            InnerHandler = new SocketsHttpHandler
+            {
+                AllowAutoRedirect = false,
+                // TCP bağlantısı kurulurken IP'yi tekrar doğrula (DNS rebinding koruması):
+                // ön kontroldeki DNS cevabı ile istek anındaki cevap farklı olabilir.
+                ConnectCallback = ConnectWithValidationAsync
+            };
+        }
+
+        private static async ValueTask<Stream> ConnectWithValidationAsync(
+            SocketsHttpConnectionContext context,
+            CancellationToken cancellationToken)
+        {
+            // Kurumsal proxy üzerinden giden isteklerde önce proxy'ye (özel IP) bağlanılır.
+            // CONNECT aşamasında RequestUri de proxy adresini gösterir; sistem proxy'sini tanı.
+            if (IsConfiguredProxyEndpoint(context))
+                return await ConnectDirectAsync(context, cancellationToken);
+
+            var allowPrivate = context.InitialRequestMessage is not null
+                && context.InitialRequestMessage.Options.TryGetValue(AllowPrivateNetworksKey, out var allow)
+                && allow;
+
+            var host = context.DnsEndPoint.Host;
+            IPAddress[] addresses = IPAddress.TryParse(host, out var literal)
+                ? [literal]
+                : await Dns.GetHostAddressesAsync(host, cancellationToken);
+
+            var permitted = allowPrivate
+                ? addresses
+                : addresses.Where(address => !UrlSafetyValidator.IsBlockedIpAddress(address)).ToArray();
+
+            if (permitted.Length == 0)
+                throw new HttpRequestException("Yerel veya özel ağ adreslerine istek gönderilemez.");
+
+            return await ConnectAsync(permitted, context.DnsEndPoint.Port, cancellationToken);
+        }
+
+        private static bool IsConfiguredProxyEndpoint(SocketsHttpConnectionContext context)
+        {
+            var host = context.DnsEndPoint.Host;
+            var port = context.DnsEndPoint.Port;
+            var probeUri = context.InitialRequestMessage?.Options.TryGetValue(OriginalRequestUriKey, out var original) == true
+                ? original
+                : context.InitialRequestMessage?.RequestUri;
+
+            if (probeUri is null)
+                return false;
+
+            var proxyUri = HttpClient.DefaultProxy.GetProxy(probeUri);
+            if (proxyUri is null)
+                return false;
+
+            return string.Equals(proxyUri.Host, host.TrimEnd('.'), StringComparison.OrdinalIgnoreCase)
+                && proxyUri.Port == port;
+        }
+
+        private static async ValueTask<Stream> ConnectDirectAsync(
+            SocketsHttpConnectionContext context,
+            CancellationToken cancellationToken)
+        {
+            var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+            try
+            {
+                await socket.ConnectAsync(context.DnsEndPoint, cancellationToken);
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
+        }
+
+        private static async ValueTask<Stream> ConnectAsync(
+            IPAddress[] addresses,
+            int port,
+            CancellationToken cancellationToken)
+        {
+            var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+            try
+            {
+                await socket.ConnectAsync(addresses, port, cancellationToken);
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
         }
 
         protected override async Task<HttpResponseMessage> SendAsync(
@@ -129,7 +229,10 @@ public class HttpHealthChecker
                 if (request.RequestUri is null)
                     throw new InvalidOperationException("İzin verilmeyen yönlendirme adresi.");
 
-                if (!UrlSafetyValidator.IsUriSafe(request.RequestUri, out var safetyError))
+                if (!UrlSafetyValidator.IsUriSafe(
+                        request.RequestUri,
+                        out var safetyError,
+                        request.Options.TryGetValue(AllowPrivateNetworksKey, out var allowPrivate) && allowPrivate))
                     throw new InvalidOperationException(safetyError ?? "İzin verilmeyen yönlendirme adresi.");
 
                 var response = await base.SendAsync(request, cancellationToken);
@@ -146,6 +249,8 @@ public class HttpHealthChecker
                 request.RequestUri = location.IsAbsoluteUri
                     ? location
                     : new Uri(request.RequestUri, location);
+
+                request.Options.Set(OriginalRequestUriKey, request.RequestUri);
 
                 if (request.Method == HttpMethod.Post || request.Method == HttpMethod.Put)
                     request.Method = HttpMethod.Get;

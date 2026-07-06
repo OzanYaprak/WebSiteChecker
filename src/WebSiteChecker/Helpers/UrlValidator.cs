@@ -2,7 +2,7 @@ namespace WebSiteChecker.Helpers;
 
 public static class UrlValidator
 {
-    public static bool IsValidHttpUrl(string url, out string? error)
+    public static bool IsValidHttpUrl(string url, out string? error, bool allowPrivateNetworks = false)
     {
         error = null;
 
@@ -24,7 +24,7 @@ public static class UrlValidator
             return false;
         }
 
-        if (!UrlSafetyValidator.IsUrlSafe(url, out error))
+        if (!UrlSafetyValidator.IsUrlSafe(url, out error, allowPrivateNetworks))
             return false;
 
         return true;

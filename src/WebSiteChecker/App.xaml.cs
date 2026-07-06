@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using Hardcodet.Wpf.TaskbarNotification;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using WebSiteChecker.Helpers;
 using WebSiteChecker.Services;
 using WebSiteChecker.ViewModels;
 
@@ -20,12 +21,47 @@ public partial class App : Application
         ((App)Current)._host?.Services
         ?? throw new InvalidOperationException("Host is not initialized.");
 
-    protected override async void OnStartup(StartupEventArgs e)
+    protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
-        InitializeTrayIcon();
+        DispatcherUnhandledException += (_, args) =>
+        {
+            // Stack trace gibi iç detayları kullanıcıya sızdırma; tanı için Debug'a yaz
+            System.Diagnostics.Debug.WriteLine($"Unhandled exception: {args.Exception}");
+            MessageBox.Show(
+                $"Beklenmeyen bir hata oluştu:\n{args.Exception.Message}",
+                "WebSiteChecker",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            args.Handled = true;
+        };
 
+        try
+        {
+            InitializeHost();
+            InitializeTrayIcon();
+
+            _mainWindow = Services.GetRequiredService<MainWindow>();
+            MainWindow = _mainWindow;
+
+            var startMinimized = e.Args.Contains("--minimized", StringComparer.OrdinalIgnoreCase);
+            if (!startMinimized)
+                ShowMainWindow();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Uygulama başlatılamadı:\n{ex.Message}",
+                "WebSiteChecker",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Shutdown();
+        }
+    }
+
+    private void InitializeHost()
+    {
         _host = Host.CreateDefaultBuilder()
             .ConfigureServices(services =>
             {
@@ -42,12 +78,8 @@ public partial class App : Application
             })
             .Build();
 
-        await _host.StartAsync();
-
+        _host.StartAsync().GetAwaiter().GetResult();
         Services.GetRequiredService<ThemeService>().Initialize();
-
-        _mainWindow = Services.GetRequiredService<MainWindow>();
-        _mainWindow.Show();
     }
 
     private void InitializeTrayIcon()
@@ -64,24 +96,50 @@ public partial class App : Application
             _notifyIcon = new TaskbarIcon
             {
                 Icon = new Icon(memoryStream),
-                ToolTipText = "WebSiteChecker",
-                Visibility = Visibility.Visible
+                ToolTipText = "WebSiteChecker — HSSGM",
+                Visibility = Visibility.Visible,
+                ContextMenu = CreateTrayContextMenu(),
+                MenuActivation = PopupActivationMode.RightClick
             };
         }
 
-        var contextMenu = new ContextMenu();
-        contextMenu.Items.Add(CreateMenuItem("Aç", OpenMenuItem_Click));
-        contextMenu.Items.Add(CreateMenuItem("Duraklat / Devam", TogglePauseMenuItem_Click));
-        contextMenu.Items.Add(new Separator());
-        contextMenu.Items.Add(CreateMenuItem("Çıkış", ExitMenuItem_Click));
-
-        _notifyIcon.ContextMenu = contextMenu;
-        _notifyIcon.TrayMouseDoubleClick += NotifyIcon_TrayMouseDoubleClick;
+        _notifyIcon.TrayMouseDoubleClick += (_, _) => ShowMainWindow();
     }
 
-    private static MenuItem CreateMenuItem(string header, RoutedEventHandler handler)
+    private ContextMenu CreateTrayContextMenu()
     {
-        var item = new MenuItem { Header = header };
+        var menu = new ContextMenu
+        {
+            Background = System.Windows.SystemColors.MenuBrush,
+            Foreground = System.Windows.SystemColors.MenuTextBrush
+        };
+
+        // ModernTheme'deki global TextBlock stilinin menüyü görünmez yapmasını engelle
+        var textBlockStyle = new Style(typeof(TextBlock));
+        textBlockStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, System.Windows.SystemColors.MenuTextBrush));
+        textBlockStyle.Setters.Add(new Setter(TextBlock.FontFamilyProperty, new System.Windows.Media.FontFamily(BrandAssets.FontFamilyWpf)));
+        menu.Resources.Add(typeof(TextBlock), textBlockStyle);
+
+        var menuItemStyle = new Style(typeof(MenuItem));
+        menuItemStyle.Setters.Add(new Setter(MenuItem.ForegroundProperty, System.Windows.SystemColors.MenuTextBrush));
+        menuItemStyle.Setters.Add(new Setter(MenuItem.FontFamilyProperty, new System.Windows.Media.FontFamily(BrandAssets.FontFamilyWpf)));
+        menu.Resources.Add(typeof(MenuItem), menuItemStyle);
+
+        menu.Items.Add(CreateTrayMenuItem("Aç", (_, _) => ShowMainWindow()));
+        menu.Items.Add(CreateTrayMenuItem("Duraklat / Devam", (_, _) => ToggleMonitorPause()));
+        menu.Items.Add(new Separator());
+        menu.Items.Add(CreateTrayMenuItem("Çıkış", (_, _) => Shutdown()));
+
+        return menu;
+    }
+
+    private static MenuItem CreateTrayMenuItem(string header, RoutedEventHandler handler)
+    {
+        var item = new MenuItem
+        {
+            Header = header,
+            Foreground = System.Windows.SystemColors.MenuTextBrush
+        };
         item.Click += handler;
         return item;
     }
@@ -105,22 +163,18 @@ public partial class App : Application
         if (_mainWindow is null)
             return;
 
-        _mainWindow.Show();
+        if (!_mainWindow.IsVisible)
+            _mainWindow.Show();
+
         _mainWindow.WindowState = WindowState.Normal;
+        _mainWindow.ShowInTaskbar = true;
         _mainWindow.Activate();
+        _mainWindow.Topmost = true;
+        _mainWindow.Topmost = false;
+        _mainWindow.Focus();
     }
 
-    private void NotifyIcon_TrayMouseDoubleClick(object sender, RoutedEventArgs e)
-    {
-        ShowMainWindow();
-    }
-
-    private void OpenMenuItem_Click(object sender, RoutedEventArgs e)
-    {
-        ShowMainWindow();
-    }
-
-    private void TogglePauseMenuItem_Click(object sender, RoutedEventArgs e)
+    private void ToggleMonitorPause()
     {
         if (_host is null)
             return;
@@ -130,10 +184,5 @@ public partial class App : Application
             monitor.Resume();
         else
             monitor.Pause();
-    }
-
-    private void ExitMenuItem_Click(object sender, RoutedEventArgs e)
-    {
-        Shutdown();
     }
 }

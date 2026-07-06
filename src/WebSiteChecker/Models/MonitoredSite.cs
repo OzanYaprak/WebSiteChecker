@@ -9,4 +9,9 @@ public class MonitoredSite
     public int TimeoutSeconds { get; set; } = 10;
     public int ExpectedStatusCode { get; set; } = 200;
     public bool IsEnabled { get; set; } = true;
+    /// <summary>
+    /// VPN veya kurum içi ağdaki hedeflere (özel IP, yönlendirme) izin verir.
+    /// Varsayılan kapalıdır; yalnızca güvenilen iç siteler için açın.
+    /// </summary>
+    public bool AllowPrivateNetworks { get; set; }
 }

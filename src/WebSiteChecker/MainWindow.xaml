@@ -2,8 +2,9 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:WebSiteChecker.Models"
-        Title="WebSiteChecker"
+        Title="WebSiteChecker — HSSGM"
         Icon="pack://application:,,,/Assets/tray-icon.ico"
+        ShowInTaskbar="True"
         Height="600"
         Width="1024"
         MinHeight="480"
@@ -24,13 +25,27 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="0">
-                <TextBlock Text="WebSiteChecker" Style="{StaticResource PageTitleStyle}"/>
-                <TextBlock Text="Web sitelerinizi izleyin, sorun olduğunda anında haberdar olun."
-                           Style="{StaticResource SubtitleStyle}" Margin="0,4,0,0"/>
+            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <Border Style="{StaticResource LogoContainerStyle}"
+                        Margin="0,0,16,0">
+                    <Image Source="pack://application:,,,/Assets/hssgm-logo.png"
+                           Height="52"
+                           Stretch="Uniform"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="WebSiteChecker" Style="{StaticResource PageTitleStyle}"/>
+                    <TextBlock Text="T.C. Sağlık Bakanlığı — Hudut ve Sahiller Sağlık Genel Müdürlüğü"
+                               Style="{StaticResource SubtitleStyle}" Margin="0,4,0,0"/>
+                    <TextBlock Text="Web sitelerinizi izleyin, sorun olduğunda anında haberdar olun."
+                               Style="{StaticResource SubtitleStyle}" Margin="0,2,0,0"/>
+                </StackPanel>
             </StackPanel>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <CheckBox Content="Windows ile başlat"
+                          IsChecked="{Binding RunAtStartup}"
+                          VerticalAlignment="Center"
+                          Margin="0,0,12,0"/>
                 <Button Content="{Binding ThemeToggleText}"
                         Command="{Binding ToggleThemeCommand}"
                         Style="{StaticResource SecondaryButtonStyle}"
@@ -156,29 +171,17 @@
 
         <!-- Toolbar -->
         <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}" Margin="0,16,0,0" Padding="16,12">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <WrapPanel Grid.Column="0" Orientation="Horizontal">
-                    <Button Content="Site Ekle" Command="{Binding AddSiteCommand}" Style="{StaticResource SiteAddButtonStyle}" Margin="0,0,8,8"/>
-                    <Button Content="Düzenle" Command="{Binding EditSiteCommand}" Margin="0,0,8,8"/>
-                    <Button Content="Sil" Command="{Binding DeleteSiteCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,8,8"/>
-                    <Rectangle Width="1" Fill="{DynamicResource BorderBrush}" Margin="4,4,12,4"/>
-                    <Button Content="Şimdi Kontrol Et" Command="{Binding CheckNowCommand}" Margin="0,0,8,8"/>
-                    <Button Content="Duraklat / Devam" Command="{Binding TogglePauseCommand}" Margin="0,0,8,8"/>
-                    <Rectangle Width="1" Fill="{DynamicResource BorderBrush}" Margin="4,4,12,4"/>
-                    <Button Content="SMTP Ayarları" Command="{Binding OpenSmtpSettingsCommand}" Margin="0,0,8,8"/>
-                    <Button Content="Test Maili Gönder" Command="{Binding SendTestEmailCommand}" Margin="0,0,8,8"/>
-                </WrapPanel>
-
-                <CheckBox Grid.Column="1"
-                          VerticalAlignment="Center"
-                          Content="Windows ile başlat"
-                          IsChecked="{Binding StartWithWindows}"/>
-            </Grid>
+            <WrapPanel Orientation="Horizontal">
+                <Button Content="Site Ekle" Command="{Binding AddSiteCommand}" Style="{StaticResource SiteAddButtonStyle}" Margin="0,0,8,8"/>
+                <Button Content="Düzenle" Command="{Binding EditSiteCommand}" Margin="0,0,8,8"/>
+                <Button Content="Sil" Command="{Binding DeleteSiteCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,8,8"/>
+                <Rectangle Width="1" Fill="{DynamicResource BorderBrush}" Margin="4,4,12,4"/>
+                <Button Content="Şimdi Kontrol Et" Command="{Binding CheckNowCommand}" Margin="0,0,8,8"/>
+                <Button Content="Duraklat / Devam" Command="{Binding TogglePauseCommand}" Margin="0,0,8,8"/>
+                <Rectangle Width="1" Fill="{DynamicResource BorderBrush}" Margin="4,4,12,4"/>
+                <Button Content="SMTP Ayarları" Command="{Binding OpenSmtpSettingsCommand}" Margin="0,0,8,8"/>
+                <Button Content="Test Maili Gönder" Command="{Binding SendTestEmailCommand}" Margin="0,0,8,8"/>
+            </WrapPanel>
         </Border>
     </Grid>
 </Window>

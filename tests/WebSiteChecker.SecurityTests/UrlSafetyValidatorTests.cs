@@ -46,6 +46,15 @@ public class UrlSafetyValidatorTests
     }
 
     [Fact]
+    public void IsUrlSafe_AllowsPrivateTargetsWhenExplicitlyEnabled()
+    {
+        var result = UrlSafetyValidator.IsUrlSafe("http://127.0.0.1", out var error, allowPrivateNetworks: true);
+
+        Assert.True(result);
+        Assert.Null(error);
+    }
+
+    [Fact]
     public void IsBlockedIpAddress_DetectsLoopback()
     {
         Assert.True(UrlSafetyValidator.IsBlockedIpAddress(IPAddress.Loopback));

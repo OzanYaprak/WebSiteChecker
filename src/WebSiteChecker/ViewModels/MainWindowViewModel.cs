@@ -28,13 +28,13 @@ public partial class MainWindowViewModel : ObservableObject
     private bool _isMonitorPaused;
 
     [ObservableProperty]
-    private bool _startWithWindows;
-
-    [ObservableProperty]
     private bool _isDarkMode;
 
     [ObservableProperty]
     private string _themeToggleText = "Koyu Mod";
+
+    [ObservableProperty]
+    private bool _runAtStartup;
 
     public MainWindowViewModel(
         ConfigStore configStore,
@@ -48,9 +48,9 @@ public partial class MainWindowViewModel : ObservableObject
         _themeService = themeService;
 
         _monitorService.SiteStateChanged += OnSiteStateChanged;
-        _startWithWindows = StartupRegistryHelper.IsStartupEnabled();
         _themeService.ThemeChanged += (_, _) => UpdateThemeState();
         UpdateThemeState();
+        LoadStartupPreference();
 
         LoadSites();
         UpdateMonitorStatus();
@@ -60,6 +60,21 @@ public partial class MainWindowViewModel : ObservableObject
     {
         IsDarkMode = _themeService.IsDarkMode;
         ThemeToggleText = IsDarkMode ? "Açık Mod" : "Koyu Mod";
+    }
+
+    private void LoadStartupPreference()
+    {
+        var settings = _configStore.LoadUiSettings();
+        RunAtStartup = settings.RunAtStartup;
+        StartupRegistryHelper.SetStartupEnabled(RunAtStartup);
+    }
+
+    partial void OnRunAtStartupChanged(bool value)
+    {
+        var settings = _configStore.LoadUiSettings();
+        settings.RunAtStartup = value;
+        _configStore.SaveUiSettings(settings);
+        StartupRegistryHelper.SetStartupEnabled(value);
     }
 
     private void LoadSites()
@@ -95,11 +110,6 @@ public partial class MainWindowViewModel : ObservableObject
             var item = Sites.FirstOrDefault(s => s.Id == state.SiteId);
             item?.UpdateFromRuntime(state);
         });
-    }
-
-    partial void OnStartWithWindowsChanged(bool value)
-    {
-        StartupRegistryHelper.SetStartupEnabled(value);
     }
 
     [RelayCommand]
@@ -197,8 +207,20 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            DialogHelper.ShowError($"Test e-postası gönderilemedi:\n{ex.Message}");
+            DialogHelper.ShowError($"Test e-postası gönderilemedi:\n{GetSmtpErrorMessage(ex)}");
         }
+    }
+
+    private static string GetSmtpErrorMessage(Exception ex)
+    {
+        var messages = new List<string>();
+        for (var current = ex; current is not null; current = current.InnerException)
+        {
+            if (!string.IsNullOrWhiteSpace(current.Message))
+                messages.Add(current.Message);
+        }
+
+        return string.Join(Environment.NewLine, messages.Distinct());
     }
 
     [RelayCommand]
