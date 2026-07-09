@@ -1,66 +1,70 @@
-<Window x:Class="WebSiteChecker.Views.AddEditSiteWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Site Ekle / Düzenle"
-        Height="559"
-        Width="500"
-        WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
-        Background="{DynamicResource AppBackgroundBrush}">
-    <Border Style="{StaticResource CardBorderStyle}" Margin="16,16,16,4">
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="150"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
-                       Text="Site Bilgileri" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,16"/>
-
-            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource FormLabelStyle}" Text="Ad" Margin="0,0,0,12"/>
-            <TextBox Grid.Row="1" Grid.Column="1" x:Name="NameTextBox" Margin="0,0,0,12"/>
-
-            <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource FormLabelStyle}" Text="URL" Margin="0,0,0,12"/>
-            <TextBox Grid.Row="2" Grid.Column="1" x:Name="UrlTextBox" Margin="0,0,0,12"/>
-
-            <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource FormLabelStyle}" Text="Kontrol aralığı (sn)" Margin="0,0,0,12"/>
-            <TextBox Grid.Row="3" Grid.Column="1" x:Name="IntervalTextBox" Text="60" Margin="0,0,0,12"/>
-
-            <TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource FormLabelStyle}" Text="Zaman aşımı (sn)" Margin="0,0,0,12"/>
-            <TextBox Grid.Row="4" Grid.Column="1" x:Name="TimeoutTextBox" Text="10" Margin="0,0,0,12"/>
-
-            <TextBlock Grid.Row="5" Grid.Column="0" Style="{StaticResource FormLabelStyle}" Text="Beklenen HTTP kodu" Margin="0,0,0,12"/>
-            <TextBox Grid.Row="5" Grid.Column="1" x:Name="StatusCodeTextBox" Text="200" Margin="0,0,0,12"/>
-
-            <CheckBox Grid.Row="6" Grid.Column="1" x:Name="EnabledCheckBox" Content="Aktif" IsChecked="True" Margin="0,0,0,8"/>
-
-            <CheckBox Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" x:Name="AllowPrivateNetworksCheckBox"
-                      Margin="0,0,0,12">
-                <TextBlock TextWrapping="Wrap">
-                    VPN / kurum içi ağ hedeflerine izin ver
-                    <LineBreak/>
-                    <Run Text="Yönlendirmeler özel IP veya iç ağ adreslerine gidebiliyorsa bu seçeneği açın."
-                         Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
-                </TextBlock>
-            </CheckBox>
-
-            <StackPanel Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2"
-                        Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-                <Button Content="Kaydet" Style="{StaticResource SecondaryButtonStyle}" MinWidth="100" Margin="0,0,10,0"
-                        IsDefault="True" Click="SaveButton_Click"/>
-                <Button Content="İptal" Style="{StaticResource SecondaryButtonStyle}" MinWidth="100" IsCancel="True"/>
-            </StackPanel>
-        </Grid>
-    </Border>
-</Window>
+<Window x:Class="WebSiteChecker.Views.AddEditSiteWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Site Ekle / Düzenle"
+        Height="650"
+        Width="500"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{DynamicResource AppBackgroundBrush}">
+    <Border Style="{StaticResource CardBorderStyle}" Margin="16,16,16,16">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                       Text="Site Bilgileri" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,16"/>
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource FormLabelStyle}" Text="Ad" Margin="0,0,0,12"/>
+            <TextBox Grid.Row="1" Grid.Column="1" x:Name="NameTextBox" Margin="0,0,0,12"/>
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource FormLabelStyle}" Text="URL" Margin="0,0,0,12"/>
+            <TextBox Grid.Row="2" Grid.Column="1" x:Name="UrlTextBox" Margin="0,0,0,12"/>
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource FormLabelStyle}" Text="Kontrol aralığı (sn)" Margin="0,0,0,12"/>
+            <TextBox Grid.Row="3" Grid.Column="1" x:Name="IntervalTextBox" Text="60" Margin="0,0,0,12"/>
+
+            <TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource FormLabelStyle}" Text="Zaman aşımı (sn)" Margin="0,0,0,12"/>
+            <TextBox Grid.Row="4" Grid.Column="1" x:Name="TimeoutTextBox" Text="10" Margin="0,0,0,12"/>
+
+            <TextBlock Grid.Row="5" Grid.Column="0" Style="{StaticResource FormLabelStyle}" Text="Beklenen HTTP kodu" Margin="0,0,0,12"/>
+            <TextBox Grid.Row="5" Grid.Column="1" x:Name="StatusCodeTextBox" Text="200" Margin="0,0,0,12"/>
+
+            <TextBlock Grid.Row="6" Grid.Column="0" Style="{StaticResource FormLabelStyle}" Text="Tekrar deneme sayısı" Margin="0,0,0,12"/>
+            <TextBox Grid.Row="6" Grid.Column="1" x:Name="RetryCountTextBox" Text="2" Margin="0,0,0,12"/>
+
+            <CheckBox Grid.Row="7" Grid.Column="1" x:Name="EnabledCheckBox" Content="Aktif" IsChecked="True" Margin="0,0,0,8"/>
+
+            <CheckBox Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" x:Name="AllowPrivateNetworksCheckBox"
+                      Margin="0,0,0,12">
+                <TextBlock TextWrapping="Wrap">
+                    VPN / kurum içi ağ hedeflerine izin ver
+                    <LineBreak/>
+                    <Run Text="Yönlendirmeler özel IP veya iç ağ adreslerine gidebiliyorsa bu seçeneği açın."
+                         Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                </TextBlock>
+            </CheckBox>
+
+            <StackPanel Grid.Row="9" Grid.Column="0" Grid.ColumnSpan="2"
+                        Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                <Button Content="Kaydet" Style="{StaticResource SecondaryButtonStyle}" MinWidth="100" Margin="0,0,10,0"
+                        IsDefault="True" Click="SaveButton_Click"/>
+                <Button Content="İptal" Style="{StaticResource SecondaryButtonStyle}" MinWidth="100" IsCancel="True"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

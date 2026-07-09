@@ -19,6 +19,12 @@ public partial class MainWindowViewModel : ObservableObject
     public ObservableCollection<SiteListItemViewModel> Sites { get; } = [];
 
     [ObservableProperty]
+    private string _siteCountText = "0 site izleniyor";
+
+    [ObservableProperty]
+    private int _siteCount;
+
+    [ObservableProperty]
     private SiteListItemViewModel? _selectedSite;
 
     [ObservableProperty]
@@ -101,6 +107,14 @@ public partial class MainWindowViewModel : ObservableObject
 
             Sites.Add(item);
         }
+
+        SiteCountText = Sites.Count switch
+        {
+            0 => "Henüz site eklenmedi",
+            1 => "1 site izleniyor",
+            _ => $"{Sites.Count} site izleniyor"
+        };
+        SiteCount = Sites.Count;
     }
 
     private void OnSiteStateChanged(object? sender, SiteRuntimeState state)

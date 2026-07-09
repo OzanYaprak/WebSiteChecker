@@ -1,27 +1,28 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <Color x:Key="AppBackgroundColor">#F0F2F5</Color>
+    <!-- Palette: #222831, #393E46, #00ADB5, #EEEEEE -->
+    <Color x:Key="AppBackgroundColor">#FFFFFF</Color>
     <Color x:Key="SurfaceColor">#FFFFFF</Color>
-    <Color x:Key="BorderColor">#E5E7EB</Color>
-    <Color x:Key="TextPrimaryColor">#111827</Color>
-    <Color x:Key="TextSecondaryColor">#6B7280</Color>
-    <Color x:Key="PrimaryColor">#C8102E</Color>
-    <Color x:Key="PrimaryHoverColor">#A50D25</Color>
-    <Color x:Key="PrimaryPressedColor">#8B0B20</Color>
+    <Color x:Key="BorderColor">#EEEEEE</Color>
+    <Color x:Key="TextPrimaryColor">#222831</Color>
+    <Color x:Key="TextSecondaryColor">#393E46</Color>
+    <Color x:Key="PrimaryColor">#00ADB5</Color>
+    <Color x:Key="PrimaryHoverColor">#009CA3</Color>
+    <Color x:Key="PrimaryPressedColor">#008A90</Color>
     <Color x:Key="SuccessColor">#059669</Color>
     <Color x:Key="SuccessBgColor">#D1FAE5</Color>
     <Color x:Key="DangerColor">#DC2626</Color>
     <Color x:Key="DangerBgColor">#FEE2E2</Color>
     <Color x:Key="WarningColor">#D97706</Color>
     <Color x:Key="WarningBgColor">#FEF3C7</Color>
-    <Color x:Key="NeutralBgColor">#F3F4F6</Color>
+    <Color x:Key="NeutralBgColor">#EEEEEE</Color>
     <Color x:Key="DataGridRowBackgroundColor">#FFFFFF</Color>
     <Color x:Key="DataGridAlternatingRowColor">#FAFAFA</Color>
-    <Color x:Key="DataGridRowHoverColor">#F9FAFB</Color>
-    <Color x:Key="DataGridRowSelectedColor">#FCE8EB</Color>
+    <Color x:Key="DataGridRowHoverColor">#EEEEEE</Color>
+    <Color x:Key="DataGridRowSelectedColor">#E0F7F8</Color>
     <Color x:Key="CheckBoxBoxBgColor">#FFFFFF</Color>
-    <Color x:Key="CardShadowColor">#000000</Color>
+    <Color x:Key="CardShadowColor">#222831</Color>
 
     <SolidColorBrush x:Key="AppBackgroundBrush" Color="{StaticResource AppBackgroundColor}"/>
     <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>

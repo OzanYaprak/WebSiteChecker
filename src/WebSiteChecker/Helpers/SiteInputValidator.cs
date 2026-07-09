@@ -35,6 +35,12 @@ public static class SiteInputValidator
             return false;
         }
 
+        if (site.RetryCount < SiteLimits.MinRetryCount || site.RetryCount > SiteLimits.MaxRetryCount)
+        {
+            error = $"Tekrar deneme sayısı {SiteLimits.MinRetryCount}-{SiteLimits.MaxRetryCount} arasında olmalıdır.";
+            return false;
+        }
+
         if (site.ExpectedStatusCode is < 100 or > 599)
         {
             error = "Geçerli bir HTTP durum kodu girin (100-599).";

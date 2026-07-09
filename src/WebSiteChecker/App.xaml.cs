@@ -96,7 +96,7 @@ public partial class App : Application
             _notifyIcon = new TaskbarIcon
             {
                 Icon = new Icon(memoryStream),
-                ToolTipText = "WebSiteChecker — HSSGM",
+                ToolTipText = "Web Pages Health Status Control Panel",
                 Visibility = Visibility.Visible,
                 ContextMenu = CreateTrayContextMenu(),
                 MenuActivation = PopupActivationMode.RightClick

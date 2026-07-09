@@ -82,33 +82,6 @@ Uygulama site erişilemediğinde e-posta göndermek için SMTP kullanır. Ayarla
 
 > **Gönderen / kullanıcı eşleşmesi:** SMTP sunucusuna hangi hesapla giriş yapılıyorsa **Gönderen** ve **Kullanıcı adı** alanları da aynı e-posta olmalıdır. Alıcı farklı bir adres olabilir.
 
-### Sağlık Bakanlığı (kurumsal SMTP)
-
-Uygulama içinde **Sağlık Bakanlığı ön ayarı** butonu ile aşağıdaki değerler otomatik doldurulur:
-
-| Alan | Değer |
-|------|-------|
-| SMTP Sunucu | `eposta.saglik.gov.tr` |
-| Port | `587` |
-| SSL kullan | Hayır (sunucu STARTTLS destekliyorsa bağlantı yine de şifrelenir) |
-| Kullanıcı adı / Gönderen | `hssgm.noreply@saglik.gov.tr` |
-| Alıcı | Bildirim alacağınız kurumsal e-posta adresi |
-| Şifre | Kurumsal SMTP hesabı parolası |
-
-Örnek yapılandırma: `config/smtp-settings.saglik.example.json`
-
-```json
-{
-  "host": "eposta.saglik.gov.tr",
-  "port": 587,
-  "useSsl": false,
-  "username": "hssgm.noreply@saglik.gov.tr",
-  "fromAddress": "hssgm.noreply@saglik.gov.tr",
-  "toAddress": "bildirim-alici@saglik.gov.tr",
-  "alertCooldownMinutes": 30,
-  "sendRecoveryEmail": true
-}
-```
 
 ### Gmail (Google) ile test
 

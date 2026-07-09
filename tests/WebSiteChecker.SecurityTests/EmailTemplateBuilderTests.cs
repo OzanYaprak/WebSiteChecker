@@ -16,7 +16,7 @@ public class EmailTemplateBuilderTests
             "Timeout",
             1200);
 
-        Assert.Contains("cid:hssgm-logo", html);
+        Assert.Contains("cid:saglik-bakanligi-logo", html);
         Assert.Contains("Test&lt;script&gt;", html);
         Assert.Contains(BrandAssets.BrandRed, html);
         Assert.Contains("SF Pro Display", html);

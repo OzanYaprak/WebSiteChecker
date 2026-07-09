@@ -94,6 +94,19 @@ public class SiteInputValidatorTests
         Assert.False(result);
     }
 
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(11)]
+    public void TryValidate_EnforcesRetryCountLimits(int retryCount)
+    {
+        var site = CreateValidSite();
+        site.RetryCount = retryCount;
+
+        var result = SiteInputValidator.TryValidate(site, out _);
+
+        Assert.False(result);
+    }
+
     [Fact]
     public void TryValidate_AllowsPrivateNetworkUrlWhenFlagEnabled()
     {

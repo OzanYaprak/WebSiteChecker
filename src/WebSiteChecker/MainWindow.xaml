@@ -11,6 +11,9 @@
         MinWidth="860"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource AppBackgroundBrush}">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    </Window.Resources>
     <Grid Margin="24" Background="{DynamicResource AppBackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -28,16 +31,14 @@
             <StackPanel Grid.Column="0" Orientation="Horizontal">
                 <Border Style="{StaticResource LogoContainerStyle}"
                         Margin="0,0,16,0">
-                    <Image Source="pack://application:,,,/Assets/hssgm-logo.png"
+                    <Image Source="pack://application:,,,/Assets/saglik-bakanligi-logo.png"
                            Height="52"
                            Stretch="Uniform"/>
                 </Border>
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="WebSiteChecker" Style="{StaticResource PageTitleStyle}"/>
-                    <TextBlock Text="T.C. Sağlık Bakanlığı — Hudut ve Sahiller Sağlık Genel Müdürlüğü"
+                    <TextBlock Text="Web Pages Health Status Control Panel" Style="{StaticResource PageTitleStyle}"/>
+                    <TextBlock Text="T.C. Sağlık Bakanlığı Hudut ve Sahiller Sağlık Genel Müdürlüğü"
                                Style="{StaticResource SubtitleStyle}" Margin="0,4,0,0"/>
-                    <TextBlock Text="Web sitelerinizi izleyin, sorun olduğunda anında haberdar olun."
-                               Style="{StaticResource SubtitleStyle}" Margin="0,2,0,0"/>
                 </StackPanel>
             </StackPanel>
 
@@ -100,21 +101,53 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Padding="20,16" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
-                    <TextBlock Text="İzlenen Siteler" Style="{StaticResource SectionTitleStyle}" Margin="0"/>
+                <Border Grid.Row="0" Padding="20,18,20,14" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="İzlenen Siteler" Style="{StaticResource SiteListHeaderTitleStyle}"/>
+                            <TextBlock Text="{Binding SiteCountText}" Style="{StaticResource SiteListHeaderSubtitleStyle}"/>
+                        </StackPanel>
+                        <Border Grid.Column="1"
+                                Background="{DynamicResource PrimaryBrush}"
+                                CornerRadius="10"
+                                Padding="10,6"
+                                VerticalAlignment="Center"
+                                Opacity="0.9">
+                            <TextBlock Text="{Binding SiteCount}"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       Foreground="White"/>
+                        </Border>
+                    </Grid>
                 </Border>
 
                 <DataGrid Grid.Row="1"
                           ItemsSource="{Binding Sites}"
                           SelectedItem="{Binding SelectedSite}"
                           IsReadOnly="True"
-                          Margin="4,0,4,4">
+                          Margin="0,0,0,4">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Ad" Binding="{Binding Name}" Width="130"
-                                            ElementStyle="{StaticResource DataGridTextElementStyle}"/>
-                        <DataGridTextColumn Header="URL" Binding="{Binding Url}" Width="*"
-                                            ElementStyle="{StaticResource DataGridTextElementStyle}"/>
-                        <DataGridTemplateColumn Header="Durum" Width="140">
+                        <DataGridTemplateColumn Header="Site" Width="160">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}" Style="{StaticResource SiteNameTextStyle}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="Adres" Width="*">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Url}" Style="{StaticResource SiteUrlTextStyle}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="Durum" Width="150">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <Border VerticalAlignment="Center">
@@ -134,19 +167,104 @@
                                                 </Style.Triggers>
                                             </Style>
                                         </Border.Style>
-                                        <TextBlock Text="{Binding StatusText}" FontSize="12" FontWeight="SemiBold">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Ellipse Width="7" Height="7" VerticalAlignment="Center" Margin="0,0,7,0">
+                                                <Ellipse.Style>
+                                                    <Style TargetType="Ellipse">
+                                                        <Setter Property="Fill" Value="{DynamicResource TextSecondaryBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Status}" Value="{x:Static models:SiteStatus.Up}">
+                                                                <Setter Property="Fill" Value="{DynamicResource SuccessBrush}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="{x:Static models:SiteStatus.Down}">
+                                                                <Setter Property="Fill" Value="{DynamicResource DangerBrush}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="{x:Static models:SiteStatus.Checking}">
+                                                                <Setter Property="Fill" Value="{DynamicResource WarningBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Ellipse.Style>
+                                            </Ellipse>
+                                            <TextBlock Text="{Binding StatusText}" FontSize="12" FontWeight="SemiBold">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Status}" Value="{x:Static models:SiteStatus.Up}">
+                                                                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="{x:Static models:SiteStatus.Down}">
+                                                                <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="{x:Static models:SiteStatus.Checking}">
+                                                                <Setter Property="Foreground" Value="{DynamicResource WarningBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="Son Kontrol" Width="140">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding LastCheckedText}" Style="{StaticResource SiteMetaTextStyle}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="Yanıt Süresi" Width="100">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding ResponseTimeText}" Style="{StaticResource ResponseTimeTextStyle}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="Hata" Width="180">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource ErrorBadgeStyle}"
+                                            ToolTip="{Binding LastError}"
+                                            Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <TextBlock Text="{Binding LastError}"
+                                                   FontSize="11"
+                                                   FontWeight="Medium"
+                                                   Foreground="{DynamicResource DangerBrush}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   MaxWidth="150"/>
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="İzleme" Width="90">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border>
+                                        <Border.Style>
+                                            <Style TargetType="Border" BasedOn="{StaticResource ActivePillStyle}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsEnabled}" Value="False">
+                                                        <Setter Property="Background" Value="{DynamicResource NeutralBgBrush}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                                                    <Setter Property="Text" Value="Aktif"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}"/>
                                                     <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Status}" Value="{x:Static models:SiteStatus.Up}">
-                                                            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}"/>
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding Status}" Value="{x:Static models:SiteStatus.Down}">
-                                                            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding Status}" Value="{x:Static models:SiteStatus.Checking}">
-                                                            <Setter Property="Foreground" Value="{DynamicResource WarningBrush}"/>
+                                                        <DataTrigger Binding="{Binding IsEnabled}" Value="False">
+                                                            <Setter Property="Text" Value="Pasif"/>
+                                                            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -156,14 +274,6 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="Son Kontrol" Binding="{Binding LastCheckedText}" Width="155"
-                                            ElementStyle="{StaticResource DataGridTextElementStyle}"/>
-                        <DataGridTextColumn Header="Yanıt" Binding="{Binding ResponseTimeText}" Width="90"
-                                            ElementStyle="{StaticResource DataGridTextElementStyle}"/>
-                        <DataGridTextColumn Header="Hata" Binding="{Binding LastError}" Width="200"
-                                            ElementStyle="{StaticResource DataGridTextElementStyle}"/>
-                        <DataGridCheckBoxColumn Header="Aktif" Binding="{Binding IsEnabled}" Width="70"
-                                                 ElementStyle="{StaticResource DataGridCheckBoxElementStyle}"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>

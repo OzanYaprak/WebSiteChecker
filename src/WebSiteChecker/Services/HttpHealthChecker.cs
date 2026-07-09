@@ -21,6 +21,25 @@ public class HttpHealthChecker
 
     public async Task<SiteCheckResult> CheckAsync(MonitoredSite site, CancellationToken cancellationToken = default)
     {
+        var maxAttempts = site.RetryCount + 1;
+        SiteCheckResult? lastResult = null;
+
+        for (var attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            if (attempt > 0)
+                await Task.Delay(SiteLimits.RetryDelayMilliseconds, cancellationToken);
+
+            lastResult = await CheckOnceAsync(site, cancellationToken);
+
+            if (lastResult.IsSuccess || !ShouldRetry(lastResult))
+                return lastResult;
+        }
+
+        return lastResult!;
+    }
+
+    private async Task<SiteCheckResult> CheckOnceAsync(MonitoredSite site, CancellationToken cancellationToken)
+    {
         var stopwatch = Stopwatch.StartNew();
 
         try
@@ -64,6 +83,20 @@ public class HttpHealthChecker
             stopwatch.Stop();
             return BuildResult(site.Id, false, null, stopwatch.ElapsedMilliseconds, ToPublicErrorMessage(ex));
         }
+    }
+
+    private static bool ShouldRetry(SiteCheckResult result)
+    {
+        if (result.IsSuccess)
+            return false;
+
+        if (result.ErrorMessage is "İstek zaman aşımına uğradı." or "Bağlantı hatası.")
+            return true;
+
+        if (result.StatusCode is 502 or 503 or 504)
+            return true;
+
+        return false;
     }
 
     private async Task<SiteCheckResult> CheckWithGetAsync(

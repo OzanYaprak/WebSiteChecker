@@ -34,6 +34,12 @@ public partial class SiteListItemViewModel : ObservableObject
     [ObservableProperty]
     private string _lastError = string.Empty;
 
+    [ObservableProperty]
+    private bool _hasError;
+
+    [ObservableProperty]
+    private long? _lastResponseTimeMs;
+
     public int TimeoutSeconds { get; set; } = 10;
     public int ExpectedStatusCode { get; set; } = 200;
 
@@ -59,8 +65,10 @@ public partial class SiteListItemViewModel : ObservableObject
             _ => "Bilinmiyor"
         };
 
-        LastCheckedText = state.LastCheckedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") ?? "-";
+        LastCheckedText = state.LastCheckedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "-";
         ResponseTimeText = state.LastResponseTimeMs.HasValue ? $"{state.LastResponseTimeMs} ms" : "-";
+        LastResponseTimeMs = state.LastResponseTimeMs;
         LastError = state.LastError ?? string.Empty;
+        HasError = !string.IsNullOrEmpty(state.LastError);
     }
 }
