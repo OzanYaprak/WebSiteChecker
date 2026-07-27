@@ -12,7 +12,9 @@ public enum EmailAlertType
 
 public static class EmailTemplateBuilder
 {
-    public const string LogoContentId = "saglik-bakanligi-logo";
+    public const string LogoContentId = "hssgm-logo";
+    public const int LogoDisplayWidth = 200;
+    public const int LogoDisplayHeight = 122;
 
     private static string Font => $"font-family:{BrandAssets.FontFamilyCss};";
 
@@ -136,29 +138,29 @@ public static class EmailTemplateBuilder
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="email-wrap" style="background:#EEEEEE;padding:24px 12px;{Font}">
                     <tr>
                         <td align="center">
-                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="email-card" style="max-width:640px;background:#FFFFFF;border-radius:16px;overflow:hidden;border:1px solid #EEEEEE;box-shadow:0 10px 30px rgba(34,40,49,0.08);{Font}">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="email-card" style="max-width:640px;background:#FFFFFF;border-radius:28px;overflow:hidden;border:1px solid #EEEEEE;box-shadow:0 10px 30px rgba(34,40,49,0.08);{Font}">
                                 <tr>
-                                    <td class="email-logo-wrap" style="background:#FFFFFF;padding:24px 28px;text-align:center;border-bottom:1px solid #EEEEEE;{Font}">
-                                        <img src="cid:{LogoContentId}" alt="" style="max-width:120px;width:50%;height:auto;display:block;margin:0 auto;"/>
+                                    <td class="email-logo-wrap" style="padding:24px 28px;text-align:center;border-bottom:1px solid #EEEEEE;{Font}">
+                                        <img src="cid:{LogoContentId}" alt="{Encode(BrandAssets.DirectorateName)}" width="{LogoDisplayWidth}" height="{LogoDisplayHeight}" style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;max-width:{LogoDisplayWidth}px;height:auto;"/>
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td class="email-content" style="padding:28px;{Font}color:#222831;">
-                                        <table role="presentation" cellspacing="0" cellpadding="0" style="margin-bottom:20px;{Font}">
+                                    <td class="email-content" style="padding:28px;text-align:center;{Font}color:#222831;">
+                                        <table role="presentation" cellspacing="0" cellpadding="0" align="center" style="margin:0 auto 20px;{Font}">
                                             <tr>
-                                                <td style="background:{accent.Background};color:{accent.Foreground};font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;padding:8px 12px;border-radius:999px;{Font}">{Encode(badge)}</td>
+                                                <td align="center" style="background:{accent.Background};color:{accent.Foreground};font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;padding:10px 20px;border-radius:999px;{Font}">{Encode(badge)}</td>
                                             </tr>
                                         </table>
-                                        <h1 class="email-content" style="margin:0 0 12px;font-size:24px;line-height:1.35;font-weight:700;color:#222831;{Font}">{Encode(title)}</h1>
-                                        <p class="email-summary" style="margin:0 0 28px;font-size:15px;line-height:1.6;color:#393E46;{Font}">{Encode(summary)}</p>
-                                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #EEEEEE;{Font}">
+                                        <h1 class="email-content" style="margin:0 0 12px;font-size:24px;line-height:1.35;font-weight:700;color:#222831;text-align:center;{Font}">{Encode(title)}</h1>
+                                        <p class="email-summary" style="margin:0 0 28px;font-size:15px;line-height:1.6;color:#393E46;text-align:center;{Font}">{Encode(summary)}</p>
+                                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #EEEEEE;text-align:left;{Font}">
                                             {htmlRows}
                                         </table>
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td class="email-footer" style="padding:18px 28px 24px;background:#FAFAFA;border-top:1px solid #EEEEEE;{Font}">
-                                        <div style="font-size:12px;color:#393E46;line-height:1.6;{Font}">
+                                    <td class="email-footer" style="padding:18px 28px 24px;background:#FAFAFA;border-top:1px solid #EEEEEE;text-align:center;{Font}">
+                                        <div style="font-size:12px;color:#393E46;line-height:1.6;text-align:center;{Font}">
                                             Bu e-posta <strong style="color:{BrandAssets.BrandAccent};{Font}">{Encode(BrandAssets.ApplicationName)}</strong> tarafından otomatik gönderilmiştir.<br/>
                                             Web sitesi izleme bildirimi
                                         </div>

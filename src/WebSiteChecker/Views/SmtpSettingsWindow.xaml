@@ -82,7 +82,7 @@
 
                     <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,12">
                         <Border Style="{StaticResource LogoContainerCompactStyle}" Margin="0,0,12,0">
-                            <Image Source="pack://application:,,,/Assets/saglik-bakanligi-logo.png" Height="40" Stretch="Uniform"/>
+                            <Image Source="pack://application:,,,/Assets/hssgm-logo.png" Height="44" Stretch="Uniform"/>
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="E-posta Bildirimleri" Style="{StaticResource SectionTitleStyle}" Margin="0"/>

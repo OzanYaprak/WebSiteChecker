@@ -31,8 +31,8 @@
             <StackPanel Grid.Column="0" Orientation="Horizontal">
                 <Border Style="{StaticResource LogoContainerStyle}"
                         Margin="0,0,16,0">
-                    <Image Source="pack://application:,,,/Assets/saglik-bakanligi-logo.png"
-                           Height="52"
+                    <Image Source="pack://application:,,,/Assets/hssgm-logo.png"
+                           Height="56"
                            Stretch="Uniform"/>
                 </Border>
                 <StackPanel VerticalAlignment="Center">

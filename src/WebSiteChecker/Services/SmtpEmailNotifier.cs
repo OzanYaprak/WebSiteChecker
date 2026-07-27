@@ -119,7 +119,7 @@ public class SmtpEmailNotifier
         logoStream.CopyTo(logoCopy);
         logoCopy.Position = 0;
 
-        var logo = (MimePart)builder.LinkedResources.Add("saglik-bakanligi-logo.png", logoCopy, ContentType.Parse("image/png"));
+        var logo = (MimePart)builder.LinkedResources.Add(BrandAssets.LogoFileName, logoCopy, ContentType.Parse("image/png"));
         logo.ContentId = EmailTemplateBuilder.LogoContentId;
         logo.ContentDisposition = new ContentDisposition(ContentDisposition.Inline);
         logo.ContentTransferEncoding = ContentEncoding.Base64;

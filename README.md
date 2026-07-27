@@ -4,7 +4,7 @@
 
 Birden fazla web sitesini periyodik olarak kontrol eden ve erişilemediğinde e-posta ile bildiren Windows masaüstü uygulaması.
 
-**Hedef platform:** Windows 10/11 · **Çerçeve:** .NET 8 (WPF)
+**Hedef platform:** Windows 10/11 · **Çerçeve:** .NET 10 (WPF)
 
 ## Özellikler
 
@@ -20,7 +20,7 @@ Birden fazla web sitesini periyodik olarak kontrol eden ve erişilemediğinde e-
 ## Gereksinimler
 
 - Windows 10/11
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 
 ## Kurulum ve Çalıştırma
 
