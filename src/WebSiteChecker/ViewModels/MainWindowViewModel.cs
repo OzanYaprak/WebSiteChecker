@@ -99,7 +99,9 @@ public partial class MainWindowViewModel : ObservableObject
                 IntervalSeconds = site.IntervalSeconds,
                 TimeoutSeconds = site.TimeoutSeconds,
                 ExpectedStatusCode = site.ExpectedStatusCode,
-                IsEnabled = site.IsEnabled
+                RetryCount = site.RetryCount,
+                IsEnabled = site.IsEnabled,
+                AllowPrivateNetworks = site.AllowPrivateNetworks
             };
 
             if (runtimeStates.TryGetValue(site.Id, out var state))

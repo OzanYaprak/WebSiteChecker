@@ -11,7 +11,7 @@ public class SmtpConnectionHelperTests
     [InlineData(465, true, SecureSocketOptions.SslOnConnect)]
     [InlineData(587, true, SecureSocketOptions.StartTls)]
     [InlineData(25, true, SecureSocketOptions.Auto)]
-    [InlineData(587, false, SecureSocketOptions.None)]
+    [InlineData(587, false, SecureSocketOptions.StartTlsWhenAvailable)]
     public void ResolveSecureSocketOptions_ReturnsExpectedValue(int port, bool useSsl, SecureSocketOptions expected)
     {
         Assert.Equal(expected, SmtpConnectionHelper.ResolveSecureSocketOptions(port, useSsl));

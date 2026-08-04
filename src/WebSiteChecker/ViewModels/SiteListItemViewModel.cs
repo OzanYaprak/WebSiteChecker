@@ -42,6 +42,8 @@ public partial class SiteListItemViewModel : ObservableObject
 
     public int TimeoutSeconds { get; set; } = 10;
     public int ExpectedStatusCode { get; set; } = 200;
+    public int RetryCount { get; set; }
+    public bool AllowPrivateNetworks { get; set; }
 
     public MonitoredSite ToModel() => new()
     {
@@ -51,7 +53,9 @@ public partial class SiteListItemViewModel : ObservableObject
         IntervalSeconds = IntervalSeconds,
         TimeoutSeconds = TimeoutSeconds,
         ExpectedStatusCode = ExpectedStatusCode,
-        IsEnabled = IsEnabled
+        RetryCount = RetryCount,
+        IsEnabled = IsEnabled,
+        AllowPrivateNetworks = AllowPrivateNetworks
     };
 
     public void UpdateFromRuntime(SiteRuntimeState state)

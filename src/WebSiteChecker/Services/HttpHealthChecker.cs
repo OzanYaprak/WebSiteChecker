@@ -131,6 +131,12 @@ public class HttpHealthChecker
             if (current is HttpRequestException { Message: var message }
                 && message.Contains("Yerel veya özel ağ", StringComparison.Ordinal))
                 return message;
+
+            if (current is SocketException { SocketErrorCode: SocketError.TimedOut })
+                return "İstek zaman aşımına uğradı.";
+
+            if (current is SocketException { SocketErrorCode: SocketError.HostNotFound or SocketError.NoData })
+                return "Sunucu adresi çözümlenemedi.";
         }
 
         Debug.WriteLine($"HTTP check error: {ex}");
@@ -160,13 +166,21 @@ public class HttpHealthChecker
 
     private sealed class SafeRedirectHandler : DelegatingHandler
     {
+        private static readonly IWebProxy Proxy = SystemProxyResolver.CreateProxy();
+
         public SafeRedirectHandler()
         {
             InnerHandler = new SocketsHttpHandler
             {
                 AllowAutoRedirect = false,
-                // TCP bağlantısı kurulurken IP'yi tekrar doğrula (DNS rebinding koruması):
-                // ön kontroldeki DNS cevabı ile istek anındaki cevap farklı olabilir.
+                UseProxy = true,
+                // VPN PAC aktifken betikteki PROXY (ör. 10.97.0.10:8080) zorunlu kullanılır.
+                Proxy = Proxy,
+                // VPN bağlan/kopunca eski TCP soketleri bozulur.
+                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+                PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1),
+                DefaultProxyCredentials = CredentialCache.DefaultCredentials,
+                // TCP bağlantısı kurulurken IP'yi tekrar doğrula (DNS rebinding koruması).
                 ConnectCallback = ConnectWithValidationAsync
             };
         }
@@ -175,9 +189,10 @@ public class HttpHealthChecker
             SocketsHttpConnectionContext context,
             CancellationToken cancellationToken)
         {
-            // Kurumsal proxy üzerinden giden isteklerde önce proxy'ye (özel IP) bağlanılır.
-            // CONNECT aşamasında RequestUri de proxy adresini gösterir; sistem proxy'sini tanı.
-            if (IsConfiguredProxyEndpoint(context))
+            // Proxy kullanılan isteklerde TCP bağlantısı hedefe değil ara sunucuya kurulur;
+            // ara sunucu adresi özel IP olabilir. Hedef adres güvenliği istek ve
+            // yönlendirme aşamalarında UrlSafetyValidator ile zaten doğrulanır.
+            if (UsesProxy(context))
                 return await ConnectDirectAsync(context, cancellationToken);
 
             var allowPrivate = context.InitialRequestMessage is not null
@@ -199,23 +214,53 @@ public class HttpHealthChecker
             return await ConnectAsync(permitted, context.DnsEndPoint.Port, cancellationToken);
         }
 
-        private static bool IsConfiguredProxyEndpoint(SocketsHttpConnectionContext context)
+        private static bool UsesProxy(SocketsHttpConnectionContext context)
         {
-            var host = context.DnsEndPoint.Host;
-            var port = context.DnsEndPoint.Port;
-            var probeUri = context.InitialRequestMessage?.Options.TryGetValue(OriginalRequestUriKey, out var original) == true
-                ? original
-                : context.InitialRequestMessage?.RequestUri;
+            // CONNECT aşamasında istek adresi proxy'nin kendisine yazılır;
+            // bağlantı uç noktası yapılandırılmış ara sunucu ile birebir eşleşir.
+            if (SystemProxyResolver.IsConfiguredProxyEndpoint(
+                    context.DnsEndPoint.Host,
+                    context.DnsEndPoint.Port))
+                return true;
 
-            if (probeUri is null)
-                return false;
+            foreach (var probe in EnumerateProxyProbes(context))
+            {
+                try
+                {
+                    if (Proxy.GetProxy(probe) is { } proxyUri && !IsSameEndpoint(proxyUri, probe))
+                        return true;
+                }
+                catch
+                {
+                    // Proxy çözümlenemezse doğrudan bağlantı kabul edilir.
+                }
+            }
 
-            var proxyUri = HttpClient.DefaultProxy.GetProxy(probeUri);
-            if (proxyUri is null)
-                return false;
+            return false;
+        }
 
-            return string.Equals(proxyUri.Host, host.TrimEnd('.'), StringComparison.OrdinalIgnoreCase)
-                && proxyUri.Port == port;
+        /// <summary>
+        /// Bazı proxy uygulamaları "proxy yok" durumunda hedefin kendisini döndürür.
+        /// Bu, filtrenin baypas edilmesine yol açmamalı.
+        /// </summary>
+        private static bool IsSameEndpoint(Uri proxyUri, Uri destination)
+        {
+            var destinationPort = destination.IsDefaultPort
+                ? destination.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase) ? 443 : 80
+                : destination.Port;
+
+            return string.Equals(proxyUri.Host.TrimEnd('.'), destination.Host.TrimEnd('.'), StringComparison.OrdinalIgnoreCase)
+                && proxyUri.Port == destinationPort;
+        }
+
+        private static IEnumerable<Uri> EnumerateProxyProbes(SocketsHttpConnectionContext context)
+        {
+            if (context.InitialRequestMessage?.Options.TryGetValue(OriginalRequestUriKey, out var original) == true
+                && original is not null)
+                yield return original;
+
+            if (context.InitialRequestMessage?.RequestUri is { } requestUri)
+                yield return requestUri;
         }
 
         private static async ValueTask<Stream> ConnectDirectAsync(
